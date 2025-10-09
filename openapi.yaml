@@ -1,907 +1,1059 @@
-openapi: 3.0.4
+openapi: 3.0.3
 info:
-  title: Swagger Petstore - OpenAPI 3.0
-  description: |-
-    Это документация основного API системы распознавания парковок
+  title: ParkTrack API
+  version: "v0.0"
+  description: |
+    
+    [Основная документация API](https://parktrack-docs.nawinds.dev/docs/api)
+    [Редактировать эту Swagger документацию](https://github.com/ParkTrack-Project/api-docs-swagger/blob/main/openapi.yaml)
+    [Редактор OpenAPI от Swagger](https://editor.swagger.io/)
+    [GitHub организация](https://github.com/parktrack-project)
 
-    Some useful links:
-    - [Swagger Editor](https://editor.swagger.io/)
+    **Base address:** `https://parktrack-api.nawinds.dev/api/v0`
 
-  contact:
-    email: parktrack@nawinds.dev
-  version: 1.0.12
-externalDocs:
-  description: Find out more about Swagger
-  url: https://swagger.io
+    ## Авторизация
+    
+    Токен можно получить в Telegram чате нашей команды.
+    
+    ## Формат данных
+
+    ### Время
+    Время передается в UTC в строковом представлении в формате ISO 8601, с постфиксом `Z`.
+    Например, `2025-10-08T09:12:00Z`.
+
+    ### Опорные точки
+    Для упрощения рендеринга парковочных зон, порядок выбора 4 опорных точек записывается Labeler
+    при разметке. Пользователю должно показываться сообщение, что отмечать точки нужно по часовой стрелке.
+    Сохраненный порядок точек должен сохраняться при передаче данных, а также при хранении на сервере.
 
 servers:
-  - url: https://parktrack.nawinds.dev/api/v1
+  - url: https://parktrack-api.nawinds.dev/api/v0
+
+security:
+  - bearerAuth: []
+
 tags:
-  - name: pet
-    description: Everything about your Pets
-    externalDocs:
-      description: Find out more
-      url: https://swagger.io
-  - name: store
-    description: Access to Petstore orders
-    externalDocs:
-      description: Find out more about our store
-      url: https://swagger.io
-  - name: user
-    description: Operations about user
+  - name: Auth
+    description: v0 — System Token Only
+  - name: Cameras
+  - name: Parking Zones
+  - name: Cars
+  - name: System
+
 paths:
-  /pet:
-    put:
+  /cameras:
+    get:
       tags:
-        - pet
-      summary: Update an existing pet.
-      description: Update an existing pet by Id.
-      operationId: updatePet
+        - Cameras
+      summary: Получить список камер
+      description: Возвращает список всех зарегистрированных камер. Используется для получения каталога камер и отображения их в интерфейсе `labeler`.
+      parameters:
+        - in: query
+          name: q
+          schema:
+            type: string
+          description: Фильтр по подстроке в `title`.
+        - in: query
+          name: top_left_corner_latitude
+          schema:
+            type: number
+            format: double
+            minimum: -90
+            maximum: 90
+          description: Широта левого верхнего угла окна просмотра камер (опционально).
+        - in: query
+          name: top_left_corner_longitude
+          schema:
+            type: number
+            format: double
+            minimum: -180
+            maximum: 180
+          description: Долгота левого верхнего угла окна просмотра камер (опционально).
+        - in: query
+          name: bottom_right_corner_latitude
+          schema:
+            type: number
+            format: double
+            minimum: -90
+            maximum: 90
+          description: Широта правого нижнего угла окна просмотра камер (опционально).
+        - in: query
+          name: bottom_right_corner_longitude
+          schema:
+            type: number
+            format: double
+            minimum: -180
+            maximum: 180
+          description: Долгота правого нижнего угла окна просмотра камер (опционально).
+      responses:
+        "200":
+          description: Список объектов Camera.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Camera"
+              examples:
+                sample:
+                  value:
+                    - camera_id: 1
+                      title: "Кронверкский просп., парковка напротив ИТМО"
+                      latitude: 59.955976
+                      longitude: 30.309426
+                      created_at: "2025-10-08T09:12:00Z"
+                      updated_at: "2025-10-08T09:12:00Z"
+                    - camera_id: 2
+                      title: "Ломоносова, 9 — двор"
+                      latitude: 59.927366
+                      longitude: 30.338487
+                      created_at: "2025-10-08T09:15:00Z"
+                      updated_at: "2025-10-08T09:15:00Z"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "422":
+          description: Валидация не пройдена (например, координаты окна просмотра заданы некорректно).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          $ref: "#/components/responses/InternalError"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+
+  /cameras/new:
+    post:
+      tags:
+        - Cameras
+      summary: Создать новую камеру
       requestBody:
-        description: Update an existent pet in the store
+        required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Pet'
-          application/xml:
-            schema:
-              $ref: '#/components/schemas/Pet'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/Pet'
-        required: true
+              $ref: "#/components/schemas/CreateCameraRequest"
+            examples:
+              sample:
+                value:
+                  title: "Кронверкский просп., парковка напротив ИТМО"
+                  latitude: 59.955976
+                  longitude: 30.309426
       responses:
-        '200':
-          description: Successful operation
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Pet'
-            application/xml:
-              schema:
-                $ref: '#/components/schemas/Pet'
-        '400':
-          description: Invalid ID supplied
-        '404':
-          description: Pet not found
-        '422':
-          description: Validation exception
-        default:
-          description: Unexpected error
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-      security:
-        - petstore_auth:
-            - write:pets
-            - read:pets
-    post:
-      tags:
-        - pet
-      summary: Add a new pet to the store.
-      description: Add a new pet to the store.
-      operationId: addPet
-      requestBody:
-        description: Create a new pet in the store
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/Pet'
-          application/xml:
-            schema:
-              $ref: '#/components/schemas/Pet'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/Pet'
-        required: true
-      responses:
-        '200':
-          description: Successful operation
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Pet'
-            application/xml:
-              schema:
-                $ref: '#/components/schemas/Pet'
-        '400':
-          description: Invalid input
-        '422':
-          description: Validation exception
-        default:
-          description: Unexpected error
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-      security:
-        - petstore_auth:
-            - write:pets
-            - read:pets
-  /pet/findByStatus:
-    get:
-      tags:
-        - pet
-      summary: Finds Pets by status.
-      description: Multiple status values can be provided with comma separated strings.
-      operationId: findPetsByStatus
-      parameters:
-        - name: status
-          in: query
-          description: Status values that need to be considered for filter
-          required: false
-          explode: true
-          schema:
-            type: string
-            default: available
-            enum:
-              - available
-              - pending
-              - sold
-      responses:
-        '200':
-          description: successful operation
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/Pet'
-            application/xml:
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/Pet'
-        '400':
-          description: Invalid status value
-        default:
-          description: Unexpected error
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-      security:
-        - petstore_auth:
-            - write:pets
-            - read:pets
-  /pet/findByTags:
-    get:
-      tags:
-        - pet
-      summary: Finds Pets by tags.
-      description: Multiple tags can be provided with comma separated strings. Use tag1, tag2, tag3 for testing.
-      operationId: findPetsByTags
-      parameters:
-        - name: tags
-          in: query
-          description: Tags to filter by
-          required: false
-          explode: true
-          schema:
-            type: array
-            items:
-              type: string
-      responses:
-        '200':
-          description: successful operation
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/Pet'
-            application/xml:
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/Pet'
-        '400':
-          description: Invalid tag value
-        default:
-          description: Unexpected error
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-      security:
-        - petstore_auth:
-            - write:pets
-            - read:pets
-  /pet/{petId}:
-    get:
-      tags:
-        - pet
-      summary: Find pet by ID.
-      description: Returns a single pet.
-      operationId: getPetById
-      parameters:
-        - name: petId
-          in: path
-          description: ID of pet to return
-          required: true
-          schema:
-            type: integer
-            format: int64
-      responses:
-        '200':
-          description: successful operation
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Pet'
-            application/xml:
-              schema:
-                $ref: '#/components/schemas/Pet'
-        '400':
-          description: Invalid ID supplied
-        '404':
-          description: Pet not found
-        default:
-          description: Unexpected error
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-      security:
-        - api_key: []
-        - petstore_auth:
-            - write:pets
-            - read:pets
-    post:
-      tags:
-        - pet
-      summary: Updates a pet in the store with form data.
-      description: Updates a pet resource based on the form data.
-      operationId: updatePetWithForm
-      parameters:
-        - name: petId
-          in: path
-          description: ID of pet that needs to be updated
-          required: true
-          schema:
-            type: integer
-            format: int64
-        - name: name
-          in: query
-          description: Name of pet that needs to be updated
-          schema:
-            type: string
-        - name: status
-          in: query
-          description: Status of pet that needs to be updated
-          schema:
-            type: string
-      responses:
-        '200':
-          description: successful operation
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Pet'
-            application/xml:
-              schema:
-                $ref: '#/components/schemas/Pet'
-        '400':
-          description: Invalid input
-        default:
-          description: Unexpected error
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-      security:
-        - petstore_auth:
-            - write:pets
-            - read:pets
-    delete:
-      tags:
-        - pet
-      summary: Deletes a pet.
-      description: Delete a pet.
-      operationId: deletePet
-      parameters:
-        - name: api_key
-          in: header
-          description: ''
-          required: false
-          schema:
-            type: string
-        - name: petId
-          in: path
-          description: Pet id to delete
-          required: true
-          schema:
-            type: integer
-            format: int64
-      responses:
-        '200':
-          description: Pet deleted
-        '400':
-          description: Invalid pet value
-        default:
-          description: Unexpected error
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-      security:
-        - petstore_auth:
-            - write:pets
-            - read:pets
-  /pet/{petId}/uploadImage:
-    post:
-      tags:
-        - pet
-      summary: Uploads an image.
-      description: Upload image of the pet.
-      operationId: uploadFile
-      parameters:
-        - name: petId
-          in: path
-          description: ID of pet to update
-          required: true
-          schema:
-            type: integer
-            format: int64
-        - name: additionalMetadata
-          in: query
-          description: Additional Metadata
-          required: false
-          schema:
-            type: string
-      requestBody:
-        content:
-          application/octet-stream:
-            schema:
-              type: string
-              format: binary
-      responses:
-        '200':
-          description: successful operation
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiResponse'
-        '400':
-          description: No file uploaded
-        '404':
-          description: Pet not found
-        default:
-          description: Unexpected error
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-      security:
-        - petstore_auth:
-            - write:pets
-            - read:pets
-  /store/inventory:
-    get:
-      tags:
-        - store
-      summary: Returns pet inventories by status.
-      description: Returns a map of status codes to quantities.
-      operationId: getInventory
-      responses:
-        '200':
-          description: successful operation
+        "201":
+          description: Числовой идентификатор созданной камеры.
           content:
             application/json:
               schema:
                 type: object
-                additionalProperties:
-                  type: integer
-                  format: int32
-        default:
-          description: Unexpected error
+                required:
+                  - camera_id
+                properties:
+                  camera_id:
+                    type: integer
+                    example: 1
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "409":
+          description: Камера с таким `title` уже существует.
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
-      security:
-        - api_key: []
-  /store/order:
-    post:
-      tags:
-        - store
-      summary: Place an order for a pet.
-      description: Place a new order in the store.
-      operationId: placeOrder
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/Order'
-          application/xml:
-            schema:
-              $ref: '#/components/schemas/Order'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/Order'
-      responses:
-        '200':
-          description: successful operation
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Order'
-        '400':
-          description: Invalid input
-        '422':
-          description: Validation exception
-        default:
-          description: Unexpected error
+        "415":
+          $ref: "#/components/responses/UnsupportedMediaType"
+        "422":
+          description: Валидация не пройдена (например, `title` пустой или слишком длинный).
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
-  /store/order/{orderId}:
+        "500":
+          $ref: "#/components/responses/InternalError"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+
+  /cameras/{camera_id}:
     get:
       tags:
-        - store
-      summary: Find purchase order by ID.
-      description: For valid response try integer IDs with value <= 5 or > 10. Other values will generate exceptions.
-      operationId: getOrderById
+        - Cameras
+      summary: Получить информацию о камере
       parameters:
-        - name: orderId
-          in: path
-          description: ID of order that needs to be fetched
-          required: true
-          schema:
-            type: integer
-            format: int64
+        - $ref: "#/components/parameters/CameraId"
       responses:
-        '200':
-          description: successful operation
+        "200":
+          description: Объект Camera.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Order'
-            application/xml:
-              schema:
-                $ref: '#/components/schemas/Order'
-        '400':
-          description: Invalid ID supplied
-        '404':
-          description: Order not found
-        default:
-          description: Unexpected error
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-    delete:
-      tags:
-        - store
-      summary: Delete purchase order by identifier.
-      description: For valid response try integer IDs with value < 1000. Anything above 1000 or nonintegers will generate API errors.
-      operationId: deleteOrder
-      parameters:
-        - name: orderId
-          in: path
-          description: ID of the order that needs to be deleted
-          required: true
-          schema:
-            type: integer
-            format: int64
-      responses:
-        '200':
-          description: order deleted
-        '400':
-          description: Invalid ID supplied
-        '404':
-          description: Order not found
-        default:
-          description: Unexpected error
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-  /user:
-    post:
-      tags:
-        - user
-      summary: Create user.
-      description: This can only be done by the logged in user.
-      operationId: createUser
-      requestBody:
-        description: Created user object
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/User'
-          application/xml:
-            schema:
-              $ref: '#/components/schemas/User'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/User'
-      responses:
-        '200':
-          description: successful operation
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/User'
-            application/xml:
-              schema:
-                $ref: '#/components/schemas/User'
-        default:
-          description: Unexpected error
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-  /user/createWithList:
-    post:
-      tags:
-        - user
-      summary: Creates list of users with given input array.
-      description: Creates list of users with given input array.
-      operationId: createUsersWithListInput
-      requestBody:
-        content:
-          application/json:
-            schema:
-              type: array
-              items:
-                $ref: '#/components/schemas/User'
-      responses:
-        '200':
-          description: Successful operation
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/User'
-            application/xml:
-              schema:
-                $ref: '#/components/schemas/User'
-        default:
-          description: Unexpected error
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-  /user/login:
-    get:
-      tags:
-        - user
-      summary: Logs user into the system.
-      description: Log into the system.
-      operationId: loginUser
-      parameters:
-        - name: username
-          in: query
-          description: The user name for login
-          required: false
-          schema:
-            type: string
-        - name: password
-          in: query
-          description: The password for login in clear text
-          required: false
-          schema:
-            type: string
-      responses:
-        '200':
-          description: successful operation
-          headers:
-            X-Rate-Limit:
-              description: calls per hour allowed by the user
-              schema:
-                type: integer
-                format: int32
-            X-Expires-After:
-              description: date in UTC when token expires
-              schema:
-                type: string
-                format: date-time
-          content:
-            application/xml:
-              schema:
-                type: string
-            application/json:
-              schema:
-                type: string
-        '400':
-          description: Invalid username/password supplied
-        default:
-          description: Unexpected error
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-  /user/logout:
-    get:
-      tags:
-        - user
-      summary: Logs out current logged in user session.
-      description: Log user out of the system.
-      operationId: logoutUser
-      parameters: []
-      responses:
-        '200':
-          description: successful operation
-        default:
-          description: Unexpected error
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-  /user/{username}:
-    get:
-      tags:
-        - user
-      summary: Get user by user name.
-      description: Get user detail based on username.
-      operationId: getUserByName
-      parameters:
-        - name: username
-          in: path
-          description: The name that needs to be fetched. Use user1 for testing
-          required: true
-          schema:
-            type: string
-      responses:
-        '200':
-          description: successful operation
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/User'
-            application/xml:
-              schema:
-                $ref: '#/components/schemas/User'
-        '400':
-          description: Invalid username supplied
-        '404':
-          description: User not found
-        default:
-          description: Unexpected error
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
+                $ref: "#/components/schemas/Camera"
+              examples:
+                sample:
+                  value:
+                    camera_id: 1
+                    title: "Кронверкский просп., парковка напротив ИТМО"
+                    latitude: 59.955976
+                    longitude: 30.309426
+                    created_at: "2025-10-08T08:00:00Z"
+                    updated_at: "2025-10-08T08:10:00Z"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+        "500":
+          $ref: "#/components/responses/InternalError"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
     put:
       tags:
-        - user
-      summary: Update user resource.
-      description: This can only be done by the logged in user.
-      operationId: updateUser
+        - Cameras
+      summary: Обновить данные камеры (частично или полностью)
       parameters:
-        - name: username
-          in: path
-          description: name that need to be deleted
-          required: true
-          schema:
-            type: string
+        - $ref: "#/components/parameters/CameraId"
       requestBody:
-        description: Update an existent user in the store
+        required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/User'
-          application/xml:
-            schema:
-              $ref: '#/components/schemas/User'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/User'
+              $ref: "#/components/schemas/UpdateCameraRequest"
       responses:
-        '200':
-          description: successful operation
-        '400':
-          description: bad request
-        '404':
-          description: user not found
-        default:
-          description: Unexpected error
+        "200":
+          description: Объект Camera (актуальное состояние после обновления).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Camera"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+        "409":
+          description: Конфликт уникальности `title`.
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+        "415":
+          $ref: "#/components/responses/UnsupportedMediaType"
+        "422":
+          description: Валидация не пройдена (`title` пустой/слишком длинный; `latitude`/`longitude` вне диапазона).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          $ref: "#/components/responses/InternalError"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
     delete:
       tags:
-        - user
-      summary: Delete user resource.
-      description: This can only be done by the logged in user.
-      operationId: deleteUser
+        - Cameras
+      summary: Удалить камеру (и связанные данные)
+      description: Удаляет камеру и **все связанные с ней парковочные зоны и данные** (при их наличии). Действие **необратимо**.
       parameters:
-        - name: username
-          in: path
-          description: The name that needs to be deleted
-          required: true
-          schema:
-            type: string
+        - $ref: "#/components/parameters/CameraId"
       responses:
-        '200':
-          description: User deleted
-        '400':
-          description: Invalid username supplied
-        '404':
-          description: User not found
-        default:
-          description: Unexpected error
+        "204":
+          description: Камера успешно удалена (тело отсутствует).
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+        "409":
+          description: Удаление невозможно из-за зависимостей (если каскадное удаление запрещено).
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
-components:
-  schemas:
-    Order:
-      type: object
-      properties:
-        id:
-          type: integer
-          format: int64
-          example: 10
-        petId:
-          type: integer
-          format: int64
-          example: 198772
-        quantity:
-          type: integer
-          format: int32
-          example: 7
-        shipDate:
-          type: string
-          format: date-time
-        status:
-          type: string
-          description: Order Status
-          example: approved
-          enum:
-            - placed
-            - approved
-            - delivered
-        complete:
-          type: boolean
-      xml:
-        name: order
-    Category:
-      type: object
-      properties:
-        id:
-          type: integer
-          format: int64
-          example: 1
-        name:
-          type: string
-          example: Dogs
-      xml:
-        name: category
-    User:
-      type: object
-      properties:
-        id:
-          type: integer
-          format: int64
-          example: 10
-        username:
-          type: string
-          example: theUser
-        firstName:
-          type: string
-          example: John
-        lastName:
-          type: string
-          example: James
-        email:
-          type: string
-          example: john@email.com
-        password:
-          type: string
-          example: '12345'
-        phone:
-          type: string
-          example: '12345'
-        userStatus:
-          type: integer
-          description: User Status
-          format: int32
-          example: 1
-      xml:
-        name: user
-    Tag:
-      type: object
-      properties:
-        id:
-          type: integer
-          format: int64
-        name:
-          type: string
-      xml:
-        name: tag
-    Pet:
-      required:
-        - name
-        - photoUrls
-      type: object
-      properties:
-        id:
-          type: integer
-          format: int64
-          example: 10
-        name:
-          type: string
-          example: doggie
-        category:
-          $ref: '#/components/schemas/Category'
-        photoUrls:
-          type: array
-          xml:
-            wrapped: true
-          items:
+        "500":
+          $ref: "#/components/responses/InternalError"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+
+  /zones:
+    get:
+      tags:
+        - Parking Zones
+      summary: Получить список парковочных зон
+      description: Возвращает список всех парковочных зон.
+      parameters:
+        - in: query
+          name: camera_id
+          schema:
+            type: integer
+            minimum: 1
+          description: Вернуть зоны только указанной камеры.
+        - in: query
+          name: min_free_count
+          schema:
+            type: integer
+            minimum: 0
+          description: Фильтр по минимальному количеству свободных мест в зоне.
+        - in: query
+          name: max_pay
+          schema:
+            type: integer
+            minimum: 0
+          description: Фильтр по максимальной цене парковки в зоне за час.
+      responses:
+        "200":
+          description: Массив объектов Zone.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Zone"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "500":
+          $ref: "#/components/responses/InternalError"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+
+  /zones/new:
+    post:
+      tags:
+        - Parking Zones
+      summary: Создать новую парковочную зону
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateZoneRequest"
+            examples:
+              sample:
+                value:
+                  camera_id: 1
+                  zone_type: "parallel"
+                  capacity: 7
+                  pay: 0
+                  points:
+                    - latitude: 59.955976
+                      longitude: 30.309426
+                      x: 45
+                      y: 23
+                    - latitude: 59.956008
+                      longitude: 30.309358
+                      x: 87
+                      y: 25
+                    - latitude: 59.956231
+                      longitude: 30.309979
+                      x: 79
+                      y: 149
+                    - latitude: 59.956201
+                      longitude: 30.310043
+                      x: 32
+                      y: 145
+      responses:
+        "201":
+          description: ID созданной зоны.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - zone_id
+                properties:
+                  zone_id:
+                    type: integer
+                    example: 1
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "404":
+          description: Камера с указанным `camera_id` не существует.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "415":
+          $ref: "#/components/responses/UnsupportedMediaType"
+        "422":
+          description: Валидация не пройдена (диапазоны координат/ровно 4 точки/`capacity`/`pay`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          $ref: "#/components/responses/InternalError"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+
+  /zones/{zone_id}:
+    get:
+      tags:
+        - Parking Zones
+      summary: Получить данные о конкретной зоне
+      parameters:
+        - $ref: "#/components/parameters/ZoneId"
+      responses:
+        "200":
+          description: Объект Zone.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Zone"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+        "500":
+          $ref: "#/components/responses/InternalError"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+    put:
+      tags:
+        - Parking Zones
+      summary: Обновить данные парковочной зоны (частично или полностью)
+      parameters:
+        - $ref: "#/components/parameters/ZoneId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateZoneRequest"
+      responses:
+        "200":
+          description: Объект Zone после обновления.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Zone"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "404":
+          description: "`zone_id` не существует, либо (при смене `camera_id`) указанная камера не найдена."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "415":
+          $ref: "#/components/responses/UnsupportedMediaType"
+        "422":
+          description: Валидация не пройдена (`capacity`/`occupied`/`confidence`/`points`/диапазоны координат).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          $ref: "#/components/responses/InternalError"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+    delete:
+      tags:
+        - Parking Zones
+      summary: Удалить парковочную зону
+      parameters:
+        - $ref: "#/components/parameters/ZoneId"
+      responses:
+        "204":
+          description: Зона успешно удалена (тело отсутствует).
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+        "409":
+          description: Удаление невозможно (конфликт).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          $ref: "#/components/responses/InternalError"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+
+  /cars:
+    post:
+      tags:
+        - Cars
+      summary: Принять результаты детекции автомобилей
+      description: Принимает результаты детекции автомобилей с конкретной камеры.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PostCarsRequest"
+            examples:
+              sample:
+                value:
+                  camera_id: 1
+                  detection_timestamp: "2025-10-08T09:12:00Z"
+                  cars:
+                    - confidence: 0.89
+                      points:
+                        - - 23
+                          - 28
+                        - - 87
+                          - 28
+                        - - 87
+                          - 42
+                        - - 23
+                          - 42
+                    - confidence: 0.91
+                      points:
+                        - - 28
+                          - 33
+                        - - 92
+                          - 33
+                        - - 92
+                          - 47
+                        - - 28
+                          - 47
+      responses:
+        "202":
+          description: Принято к обработке.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - status
+                properties:
+                  status:
+                    type: string
+                    example: accepted
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "404":
+          description: Камера с указанным `camera_id` не существует.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "415":
+          $ref: "#/components/responses/UnsupportedMediaType"
+        "422":
+          description: |
+            Валидация не пройдена: `confidence` вне диапазона `0..1`; `points` не 4 вершины; вершины не пары чисел; вырожденный прямоугольник; `detection_timestamp` не в ISO 8601 UTC (с постфиксом `Z`) или слишком сильно расходится с серверным временем.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          $ref: "#/components/responses/InternalError"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+    get:
+      tags:
+        - Cars
+      summary: Long polling для получения обновлений детекций
+      description: |
+        Long polling для получения **обновлений детекций** по камерам.
+
+        За один ответ сервер возвращает данные детекций **только по одной камере**, даже если они доступны по нескольким.
+        В случае, когда данные есть по нескольким камерам, возвращаются данные по камере с самым ранним временем детекции.
+
+        На одну камеру должно быть не более 1 одновременного long polling запроса.
+      parameters:
+        - in: query
+          name: since
+          schema:
             type: string
-            xml:
-              name: photoUrl
-        tags:
-          type: array
-          xml:
-            wrapped: true
-          items:
-            $ref: '#/components/schemas/Tag'
-        status:
-          type: string
-          description: pet status in the store
-          enum:
-            - available
-            - pending
-            - sold
-      xml:
-        name: pet
-    ApiResponse:
-      type: object
-      properties:
-        code:
-          type: integer
-          format: int32
-        type:
-          type: string
-        message:
-          type: string
-      xml:
-        name: '##default'
+            format: date-time
+          description: Вернуть события новее указанного времени (UTC, ISO 8601).
+        - in: query
+          name: timeout
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 60
+            default: 30
+          description: Сколько секунд держать соединение открытым, если новых данных нет.
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            minimum: 1
+          description: Максимальное число событий/пакетов в ответе.
+      responses:
+        "200":
+          description: Пакет обновлений по одной камере.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CarsLongPollResponse"
+              examples:
+                sample:
+                  value:
+                    camera_id: 1
+                    since: "2025-10-08T09:12:00Z"
+                    next_since: "2025-10-08T09:12:30Z"
+                    cars:
+                      - confidence: 0.89
+                        points:
+                          - - 23
+                            - 28
+                          - - 87
+                            - 28
+                          - - 87
+                            - 42
+                          - - 23
+                            - 42
+                      - confidence: 0.91
+                        points:
+                          - - 28
+                            - 33
+                          - - 92
+                            - 33
+                          - - 92
+                            - 47
+                          - - 28
+                            - 47
+        "204":
+          description: При отсутствии новых данных.
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "408":
+          description: Клиент оборвал соединение/истёк таймаут на стороне прокси.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "422":
+          description: Невалидный `since` (не ISO 8601) или конфликт параметров.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          $ref: "#/components/responses/InternalError"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+
+  /health:
+    get:
+      tags:
+        - System
+      summary: Health check
+      security: []
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - status
+                properties:
+                  status:
+                    type: string
+                    example: ok
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /version:
+    get:
+      tags:
+        - System
+      summary: Версия API
+      security: []
+      responses:
+        "200":
+          description: Текущая версия API.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - api
+                properties:
+                  api:
+                    type: string
+                    example: v0.0
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    CameraId:
+      in: path
+      name: camera_id
+      required: true
+      schema:
+        type: integer
+        minimum: 1
+      description: Идентификатор камеры.
+    ZoneId:
+      in: path
+      name: zone_id
+      required: true
+      schema:
+        type: integer
+        minimum: 1
+      description: Идентификатор зоны.
+
+  responses:
+    UnauthorizedError:
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+      description:
+            "Отсутствует или просрочен токен. Укажи `Authorization: Bearer <token>`."
+    NotFoundError:
+      description: Ресурс не найден.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    UnsupportedMediaType:
+      description: Неверный `Content-Type`. Используй `application/json`.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+          examples:
+            sample:
+              value:
+                error_description: "Unsupported Media Type: expected application/json"
+    InternalError:
+      description: Необработанная ошибка сервера.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    ServiceUnavailable:
+      description: Сервис временно недоступен/перезапускается.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+
+  schemas:
     Error:
       type: object
-      properties:
-        code:
-          type: string
-        message:
-          type: string
       required:
-        - code
-        - message
-  requestBodies:
-    Pet:
-      description: Pet object that needs to be added to the store
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Pet'
-        application/xml:
-          schema:
-            $ref: '#/components/schemas/Pet'
-    UserArray:
-      description: List of user object
-      content:
-        application/json:
-          schema:
+        - error_description
+      properties:
+        error_description:
+          type: string
+          example: "Validation error: поле X обязательно"
+
+    Camera:
+      type: object
+      description: Модель Camera.
+      required:
+        - camera_id
+        - title
+        - latitude
+        - longitude
+        - created_at
+        - updated_at
+      properties:
+        camera_id:
+          type: integer
+          example: 1
+        title:
+          type: string
+          example: "Кронверкский просп., парковка напротив ИТМО"
+        latitude:
+          type: number
+          format: double
+          minimum: -90
+          maximum: 90
+          example: 59.955976
+        longitude:
+          type: number
+          format: double
+          minimum: -180
+          maximum: 180
+          example: 30.309426
+        created_at:
+          type: string
+          format: date-time
+          example: "2025-10-08T08:00:00Z"
+        updated_at:
+          type: string
+          format: date-time
+          example: "2025-10-08T08:10:00Z"
+
+    CreateCameraRequest:
+      type: object
+      description: |
+        **Request body (required)**
+        - **title** (`string`, 1..200)
+        - **latitude** (`float`, `-90..90`)
+        - **longitude** (`float`, `-180..180`)
+      required:
+        - title
+        - latitude
+        - longitude
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+        latitude:
+          type: number
+          format: double
+          minimum: -90
+          maximum: 90
+        longitude:
+          type: number
+          format: double
+          minimum: -180
+          maximum: 180
+
+    UpdateCameraRequest:
+      type: object
+      additionalProperties: false
+      description: Любые из полей ниже; минимум одно поле.
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+        latitude:
+          type: number
+          format: double
+          minimum: -90
+          maximum: 90
+        longitude:
+          type: number
+          format: double
+          minimum: -180
+          maximum: 180
+
+    ZonePoint:
+      type: object
+      description: Опорная точка зоны (карта + пиксели изображения), по часовой стрелке.
+      required:
+        - latitude
+        - longitude
+        - x
+        - y
+      properties:
+        latitude:
+          type: number
+          format: double
+          minimum: -90
+          maximum: 90
+        longitude:
+          type: number
+          format: double
+          minimum: -180
+          maximum: 180
+        x:
+          type: number
+          format: double
+          minimum: 0
+        y:
+          type: number
+          format: double
+          minimum: 0
+
+    Zone:
+      type: object
+      description: Объект зоны в ответах API.
+      required:
+        - zone_id
+        - camera_id
+        - zone_type
+        - capacity
+        - pay
+        - points
+        - created_at
+        - updated_at
+      properties:
+        zone_id:
+          type: integer
+          example: 1
+        camera_id:
+          type: integer
+          example: 1
+        zone_type:
+          type: string
+          enum:
+            - parallel
+            - standard
+          example: parallel
+        capacity:
+          type: integer
+          minimum: 0
+          example: 7
+        occupied:
+          type: integer
+          minimum: 0
+          example: 5
+        confidence:
+          type: number
+          format: double
+          minimum: 0
+          maximum: 1
+          example: 0.76
+        pay:
+          type: integer
+          minimum: 0
+          example: 0
+        points:
+          type: array
+          minItems: 4
+          maxItems: 4
+          items:
+            $ref: "#/components/schemas/ZonePoint"
+        created_at:
+          type: string
+          format: date-time
+          example: "2025-10-08T08:00:00Z"
+        updated_at:
+          type: string
+          format: date-time
+          example: "2025-10-08T08:10:00Z"
+
+    CreateZoneRequest:
+      type: object
+      description: |
+        Ровно 4 точки. Координаты широты/долготы в допустимых диапазонах.
+        `capacity >= 0`, `pay >= 0`. Для `points` порядок по часовой стрелке.
+      required:
+        - camera_id
+        - zone_type
+        - capacity
+        - pay
+        - points
+      properties:
+        camera_id:
+          type: integer
+          minimum: 1
+        zone_type:
+          type: string
+          enum:
+            - parallel
+            - standard
+        capacity:
+          type: integer
+          minimum: 0
+        pay:
+          type: integer
+          minimum: 0
+        points:
+          type: array
+          minItems: 4
+          maxItems: 4
+          items:
+            $ref: "#/components/schemas/ZonePoint"
+
+    UpdateZoneRequest:
+      type: object
+      additionalProperties: false
+      description: Любое подмножество полей; минимум одно.
+      properties:
+        camera_id:
+          type: integer
+          minimum: 1
+        zone_type:
+          type: string
+          enum:
+            - parallel
+            - standard
+        capacity:
+          type: integer
+          minimum: 0
+        pay:
+          type: integer
+          minimum: 0
+        occupied:
+          type: integer
+          minimum: 0
+        confidence:
+          type: number
+          format: double
+          minimum: 0
+          maximum: 1
+        points:
+          type: array
+          minItems: 4
+          maxItems: 4
+          items:
+            $ref: "#/components/schemas/ZonePoint"
+
+    CarDetection:
+      type: object
+      description: Элемент в массиве `cars`.
+      required:
+        - confidence
+        - points
+      properties:
+        confidence:
+          type: number
+          format: double
+          minimum: 0
+          maximum: 1
+          example: 0.89
+        points:
+          type: array
+          minItems: 4
+          maxItems: 4
+          items:
             type: array
+            minItems: 2
+            maxItems: 2
             items:
-              $ref: '#/components/schemas/User'
-  securitySchemes:
-    petstore_auth:
-      type: oauth2
-      flows:
-        implicit:
-          authorizationUrl: https://petstore3.swagger.io/oauth/authorize
-          scopes:
-            "write:pets": modify pets in your account
-            "read:pets": read your pets
-    api_key:
-      type: apiKey
-      name: api_key
-      in: header
+              type: number
+              format: double
+          example:
+            - - 23
+              - 28
+            - - 87
+              - 28
+            - - 87
+              - 42
+            - - 23
+              - 42
+
+    PostCarsRequest:
+      type: object
+      description: Принимает результаты детекции автомобилей с конкретной камеры за один кадр.
+      required:
+        - camera_id
+        - detection_timestamp
+        - cars
+      properties:
+        camera_id:
+          type: integer
+          minimum: 1
+        detection_timestamp:
+          type: string
+          format: date-time
+          example: "2025-10-08T09:12:00Z"
+        cars:
+          type: array
+          description: Список всех детекций по камере за данный кадр (допускается пустой список).
+          items:
+            $ref: "#/components/schemas/CarDetection"
+
+    CarsLongPollResponse:
+      type: object
+      description: Пакет обновлений детекций по одной камере.
+      required:
+        - camera_id
+        - since
+        - next_since
+        - cars
+      properties:
+        camera_id:
+          type: integer
+          example: 1
+        since:
+          type: string
+          format: date-time
+          example: "2025-10-08T09:12:00Z"
+        next_since:
+          type: string
+          format: date-time
+          example: "2025-10-08T09:12:30Z"
+        cars:
+          type: array
+          items:
+            $ref: "#/components/schemas/CarDetection"
