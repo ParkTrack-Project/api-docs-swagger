@@ -3,12 +3,18 @@ info:
   title: ParkTrack API
   version: "v0.0"
   description: |
+    Полезные ссылки:
     
     [Основная документация API](https://parktrack-docs.nawinds.dev/docs/api)
+    
     [Редактировать эту Swagger документацию](https://github.com/ParkTrack-Project/api-docs-swagger/blob/main/openapi.yaml)
+    
     [Редактор OpenAPI от Swagger](https://editor.swagger.io/)
+    
     [GitHub организация](https://github.com/parktrack-project)
 
+    ---
+    
     **Base address:** `https://parktrack-api.nawinds.dev/api/v0`
 
     ## Авторизация
