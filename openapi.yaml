@@ -15,7 +15,7 @@ info:
 
     ---
     
-    **Base address:** `https://parktrack-api.nawinds.dev/api/v0`
+    **Base address:** `https://parktrack-api.nawinds.dev/`
 
     ## Авторизация
     
@@ -33,7 +33,7 @@ info:
     Сохраненный порядок точек должен сохраняться при передаче данных, а также при хранении на сервере.
 
 servers:
-  - url: https://parktrack-api.nawinds.dev/api/v0
+  - url: https://parktrack-api.nawinds.dev/
 
 security:
   - bearerAuth: []
