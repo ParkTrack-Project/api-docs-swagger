@@ -648,7 +648,7 @@ paths:
                 properties:
                   status:
                     type: string
-                    example: ok
+                    example: healthy
         "500":
           $ref: "#/components/responses/InternalError"
 
@@ -668,7 +668,7 @@ paths:
                 required:
                   - api
                 properties:
-                  api:
+                  api_version:
                     type: string
                     example: v0.0
         "500":
