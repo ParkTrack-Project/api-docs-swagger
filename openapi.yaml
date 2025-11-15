@@ -5,7 +5,7 @@ info:
   description: |
     Полезные ссылки:
     
-    [Основная документация API](https://parktrack-docs.nawinds.dev/docs/api)
+    [Основная документация API](https://docs.parktrack.live/docs/api)
     
     [Редактировать эту Swagger документацию](https://github.com/ParkTrack-Project/api-docs-swagger/blob/main/openapi.yaml)
     
@@ -15,7 +15,7 @@ info:
 
     ---
     
-    **Base address:** `https://parktrack-api.nawinds.dev/`
+    **Base address:** `https://api.parktrack.live/`
 
     ## Авторизация
     
@@ -33,7 +33,7 @@ info:
     Сохраненный порядок точек должен сохраняться при передаче данных, а также при хранении на сервере.
 
 servers:
-  - url: https://parktrack-api.nawinds.dev/
+  - url: https://api.parktrack.live/
 
 security:
   - bearerAuth: []

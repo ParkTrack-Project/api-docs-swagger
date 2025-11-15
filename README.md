@@ -1,8 +1,8 @@
 # Swagger-версия API документации к проекту ParkTrack
 
-### [Открыть Swagger](https://parktrack-swagger.nawinds.dev/)
+### [Открыть Swagger](https://swagger.parktrack.live/)
 
-> Основная документация API находится на сайте документации проекта [parktrack-docs.nawinds.dev](https://parktrack-docs.nawinds.dev/docs/api)
+> Основная документация API находится на сайте документации проекта [docs.parktrack.live](https://docs.parktrack.live/docs/api)
 
 Редактировать документацию можно в файле [openapi.yaml](./openapi.yaml). Он написан в формате OpenAPI под Swagger. 
 
