@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: ParkTrack API
-  version: "v0.0"
+  version: "v1.0"
   description: |
     Полезные ссылки:
     
@@ -15,11 +15,12 @@ info:
 
     ---
     
-    **Base address:** `https://api.parktrack.live/`
+    **Base address:** `https://api.parktrack.live`
 
     ## Авторизация
     
-    Токен можно получить в Telegram чате нашей команды.
+    Для MVP используется один системный access_token с полным доступом ко всему API (v1 — System Token Only).
+    Токен можно получить в Telegram-чате команды.
     
     ## Формат данных
 
@@ -33,17 +34,16 @@ info:
     Сохраненный порядок точек должен сохраняться при передаче данных, а также при хранении на сервере.
 
 servers:
-  - url: https://api.parktrack.live/
+  - url: https://api.parktrack.live
 
 security:
   - bearerAuth: []
 
 tags:
   - name: Auth
-    description: v0 — System Token Only
+    description: v1 — System Token Only
   - name: Cameras
   - name: Parking Zones
-  - name: Cars
   - name: System
 
 paths:
@@ -105,12 +105,29 @@ paths:
                   value:
                     - camera_id: 1
                       title: "Кронверкский просп., парковка напротив ИТМО"
+                      source: "rtsp://..."
+                      image_width: 1920
+                      image_height: 1080
+                      calib:
+                        image_width: 1920
+                        image_height: 1080
+                        K:
+                          - [1739.237279181759, 0.0, 947.5335576199107]
+                          - [0.0, 2244.705015334057, 564.6946579168148]
+                          - [0.0, 0.0, 1.0]
+                        D: [-0.37, 0.05, 0.03, 0.01]
+                        balance: 0.0
+                        model: "opencv_fisheye_k1k2k3k4"
                       latitude: 59.955976
                       longitude: 30.309426
                       created_at: "2025-10-08T09:12:00Z"
                       updated_at: "2025-10-08T09:12:00Z"
                     - camera_id: 2
                       title: "Ломоносова, 9 — двор"
+                      source: "https://... .m3u8"
+                      image_width: 1920
+                      image_height: 1080
+                      calib: null
                       latitude: 59.927366
                       longitude: 30.338487
                       created_at: "2025-10-08T09:15:00Z"
@@ -143,6 +160,10 @@ paths:
               sample:
                 value:
                   title: "Кронверкский просп., парковка напротив ИТМО"
+                  source: "https://... .m3u8"
+                  image_width: 1920
+                  image_height: 1080
+                  calib: null
                   latitude: 59.955976
                   longitude: 30.309426
       responses:
@@ -158,8 +179,12 @@ paths:
                   camera_id:
                     type: integer
                     example: 1
+        "400":
+          $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
         "409":
           description: Камера с таким `title` уже существует.
           content:
@@ -198,6 +223,10 @@ paths:
                   value:
                     camera_id: 1
                     title: "Кронверкский просп., парковка напротив ИТМО"
+                    source: "https://... .m3u8"
+                    image_width: 1920
+                    image_height: 1080
+                    calib: null
                     latitude: 59.955976
                     longitude: 30.309426
                     created_at: "2025-10-08T08:00:00Z"
@@ -229,8 +258,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Camera"
+        "400":
+          $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
         "404":
           $ref: "#/components/responses/NotFoundError"
         "409":
@@ -263,10 +296,93 @@ paths:
           description: Камера успешно удалена (тело отсутствует).
         "401":
           $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
         "404":
           $ref: "#/components/responses/NotFoundError"
         "409":
-          description: Удаление невозможно из-за зависимостей (если каскадное удаление запрещено).
+          description: Удаление невозможно из-за зависимостей (есть парковочные зоны с этой камерой).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          $ref: "#/components/responses/InternalError"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+
+  /cameras/next:
+    get:
+      tags:
+        - Cameras
+      summary: Получить следующую камеру для детекции
+      description: |
+        Возвращает следующую камеру для очередной детекции автомобилей.
+        Камеры перебираются по кругу по их идентификаторам.
+      responses:
+        "200":
+          description: Данные следующей камеры.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CamerasNextResponse"
+              examples:
+                with_calib:
+                  value:
+                    camera_id: 1
+                    source: "https://<path>.m3u8"
+                    image_width: 1920
+                    image_height: 1080
+                    calib:
+                      image_width: 1920
+                      image_height: 1080
+                      K:
+                        - [1739.237279181759, 0.0, 947.5335576199107]
+                        - [0.0, 2244.705015334057, 564.6946579168148]
+                        - [0.0, 0.0, 1.0]
+                      D: [-0.37, 0.05, 0.03, 0.01]
+                      balance: 0.0
+                      model: "opencv_fisheye_k1k2k3k4"
+                without_calib:
+                  value:
+                    camera_id: 1
+                    source: "https://<path>.m3u8"
+                    image_width: 1920
+                    image_height: 1080
+                    calib: null
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "404":
+          description: Не добавлено ни одной камеры.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          $ref: "#/components/responses/InternalError"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+
+  /cameras/{camera_id}/snapshot:
+    get:
+      tags:
+        - Cameras
+      summary: Получить кадр из видеопотока камеры
+      description: Возвращает изображение (кадр) из видеопотока `source` камеры.
+      parameters:
+        - $ref: "#/components/parameters/CameraId"
+      responses:
+        "200":
+          description: Изображение (снимок) с камеры.
+          content:
+            image/jpeg:
+              schema:
+                type: string
+                format: binary
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "404":
+          description: Камера с указанным `camera_id` не найдена.
           content:
             application/json:
               schema:
@@ -281,7 +397,12 @@ paths:
       tags:
         - Parking Zones
       summary: Получить список парковочных зон
-      description: Возвращает список всех парковочных зон.
+      description: |
+        Возвращает список всех парковочных зон.
+        Авторизация не обязательна; при запросе без токена поле `camera_id` в объектах Zone может отсутствовать.
+      security:
+        - {}
+        - bearerAuth: []
       parameters:
         - in: query
           name: camera_id
@@ -365,8 +486,12 @@ paths:
                   zone_id:
                     type: integer
                     example: 1
+        "400":
+          $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
         "404":
           description: Камера с указанным `camera_id` не существует.
           content:
@@ -391,6 +516,12 @@ paths:
       tags:
         - Parking Zones
       summary: Получить данные о конкретной зоне
+      description: |
+        Возвращает данные о конкретной парковочной зоне.
+        Авторизация не обязательна; при запросе без токена поле `camera_id` может отсутствовать.
+      security:
+        - {}
+        - bearerAuth: []
       parameters:
         - $ref: "#/components/parameters/ZoneId"
       responses:
@@ -427,8 +558,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Zone"
+        "400":
+          $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
         "404":
           description: "`zone_id` не существует, либо (при смене `camera_id`) указанная камера не найдена."
           content:
@@ -458,169 +593,12 @@ paths:
           description: Зона успешно удалена (тело отсутствует).
         "401":
           $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
         "404":
           $ref: "#/components/responses/NotFoundError"
         "409":
           description: Удаление невозможно (конфликт).
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-        "500":
-          $ref: "#/components/responses/InternalError"
-        "503":
-          $ref: "#/components/responses/ServiceUnavailable"
-
-  /cars:
-    post:
-      tags:
-        - Cars
-      summary: Принять результаты детекции автомобилей
-      description: Принимает результаты детекции автомобилей с конкретной камеры.
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/PostCarsRequest"
-            examples:
-              sample:
-                value:
-                  camera_id: 1
-                  detection_timestamp: "2025-10-08T09:12:00Z"
-                  cars:
-                    - confidence: 0.89
-                      points:
-                        - - 23
-                          - 28
-                        - - 87
-                          - 28
-                        - - 87
-                          - 42
-                        - - 23
-                          - 42
-                    - confidence: 0.91
-                      points:
-                        - - 28
-                          - 33
-                        - - 92
-                          - 33
-                        - - 92
-                          - 47
-                        - - 28
-                          - 47
-      responses:
-        "202":
-          description: Принято к обработке.
-          content:
-            application/json:
-              schema:
-                type: object
-                required:
-                  - status
-                properties:
-                  status:
-                    type: string
-                    example: accepted
-        "401":
-          $ref: "#/components/responses/UnauthorizedError"
-        "404":
-          description: Камера с указанным `camera_id` не существует.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-        "415":
-          $ref: "#/components/responses/UnsupportedMediaType"
-        "422":
-          description: |
-            Валидация не пройдена: `confidence` вне диапазона `0..1`; `points` не 4 вершины; вершины не пары чисел; вырожденный прямоугольник; `detection_timestamp` не в ISO 8601 UTC (с постфиксом `Z`) или слишком сильно расходится с серверным временем.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-        "500":
-          $ref: "#/components/responses/InternalError"
-        "503":
-          $ref: "#/components/responses/ServiceUnavailable"
-    get:
-      tags:
-        - Cars
-      summary: Long polling для получения обновлений детекций
-      description: |
-        Long polling для получения **обновлений детекций** по камерам.
-
-        За один ответ сервер возвращает данные детекций **только по одной камере**, даже если они доступны по нескольким.
-        В случае, когда данные есть по нескольким камерам, возвращаются данные по камере с самым ранним временем детекции.
-
-        На одну камеру должно быть не более 1 одновременного long polling запроса.
-      parameters:
-        - in: query
-          name: since
-          schema:
-            type: string
-            format: date-time
-          description: Вернуть события новее указанного времени (UTC, ISO 8601).
-        - in: query
-          name: timeout
-          schema:
-            type: integer
-            minimum: 1
-            maximum: 60
-            default: 30
-          description: Сколько секунд держать соединение открытым, если новых данных нет.
-        - in: query
-          name: limit
-          schema:
-            type: integer
-            minimum: 1
-          description: Максимальное число событий/пакетов в ответе.
-      responses:
-        "200":
-          description: Пакет обновлений по одной камере.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/CarsLongPollResponse"
-              examples:
-                sample:
-                  value:
-                    camera_id: 1
-                    since: "2025-10-08T09:12:00Z"
-                    next_since: "2025-10-08T09:12:30Z"
-                    cars:
-                      - confidence: 0.89
-                        points:
-                          - - 23
-                            - 28
-                          - - 87
-                            - 28
-                          - - 87
-                            - 42
-                          - - 23
-                            - 42
-                      - confidence: 0.91
-                        points:
-                          - - 28
-                            - 33
-                          - - 92
-                            - 33
-                          - - 92
-                            - 47
-                          - - 28
-                            - 47
-        "204":
-          description: При отсутствии новых данных.
-        "401":
-          $ref: "#/components/responses/UnauthorizedError"
-        "408":
-          description: Клиент оборвал соединение/истёк таймаут на стороне прокси.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-        "422":
-          description: Невалидный `since` (не ISO 8601) или конфликт параметров.
           content:
             application/json:
               schema:
@@ -638,7 +616,7 @@ paths:
       security: []
       responses:
         "200":
-          description: OK
+          description: Статус здоровья сервера и БД.
           content:
             application/json:
               schema:
@@ -648,6 +626,9 @@ paths:
                 properties:
                   status:
                     type: string
+                    enum:
+                      - healthy
+                      - degraded
                     example: healthy
         "500":
           $ref: "#/components/responses/InternalError"
@@ -666,7 +647,7 @@ paths:
               schema:
                 type: object
                 required:
-                  - api
+                  - api_version
                 properties:
                   api_version:
                     type: string
@@ -700,13 +681,24 @@ components:
       description: Идентификатор зоны.
 
   responses:
-    UnauthorizedError:
+    BadRequest:
+      description: Невалидный JSON или неверные типы полей.
       content:
         application/json:
           schema:
             $ref: "#/components/schemas/Error"
-      description:
-            "Отсутствует или просрочен токен. Укажи `Authorization: Bearer <token>`."
+    UnauthorizedError:
+      description: "Отсутствует или просрочен токен. Укажи `Authorization: Bearer <token>`."
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    ForbiddenError:
+      description: У пользователя нет прав выполнять действие (например, создавать камеры). Проверь роли/права API-токена.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
     NotFoundError:
       description: Ресурс не найден.
       content:
@@ -752,6 +744,9 @@ components:
       required:
         - camera_id
         - title
+        - source
+        - image_width
+        - image_height
         - latitude
         - longitude
         - created_at
@@ -763,6 +758,23 @@ components:
         title:
           type: string
           example: "Кронверкский просп., парковка напротив ИТМО"
+        source:
+          type: string
+          description: URL с видеопотоком камеры (например, `.m3u8`) или строка подключения (`rtsp://...`).
+          example: "https://... .m3u8"
+        image_width:
+          type: integer
+          minimum: 1
+          example: 1920
+        image_height:
+          type: integer
+          minimum: 1
+          example: 1080
+        calib:
+          type: object
+          nullable: true
+          description: Вложенный json-объект с информацией о калибровке и вытягивании изображения с камеры. Может быть `null`.
+          additionalProperties: true
         latitude:
           type: number
           format: double
@@ -789,10 +801,17 @@ components:
       description: |
         **Request body (required)**
         - **title** (`string`, 1..200)
+        - **source** (`string`) — URL с видеопотоком или строка подключения.
+        - **image_width** (`integer`) — ширина кадра в пикселях.
+        - **image_height** (`integer`) — высота кадра в пикселях.
         - **latitude** (`float`, `-90..90`)
         - **longitude** (`float`, `-180..180`)
+        - **calib** (`json`) — дополнительный объект с калибровкой, может быть `null`.
       required:
         - title
+        - source
+        - image_width
+        - image_height
         - latitude
         - longitude
       properties:
@@ -800,6 +819,18 @@ components:
           type: string
           minLength: 1
           maxLength: 200
+        source:
+          type: string
+        image_width:
+          type: integer
+          minimum: 1
+        image_height:
+          type: integer
+          minimum: 1
+        calib:
+          type: object
+          nullable: true
+          additionalProperties: true
         latitude:
           type: number
           format: double
@@ -820,6 +851,18 @@ components:
           type: string
           minLength: 1
           maxLength: 200
+        source:
+          type: string
+        image_width:
+          type: integer
+          minimum: 1
+        image_height:
+          type: integer
+          minimum: 1
+        calib:
+          type: object
+          nullable: true
+          additionalProperties: true
         latitude:
           type: number
           format: double
@@ -830,6 +873,45 @@ components:
           format: double
           minimum: -180
           maximum: 180
+
+    CamerasNextResponse:
+      type: object
+      description: Ответ эндпоинта `/cameras/next`.
+      required:
+        - camera_id
+        - source
+        - image_width
+        - image_height
+      properties:
+        camera_id:
+          type: integer
+          example: 1
+        source:
+          type: string
+          example: "https://<path>.m3u8"
+        image_width:
+          type: integer
+          minimum: 1
+          example: 1920
+        image_height:
+          type: integer
+          minimum: 1
+          example: 1080
+        calib:
+          type: object
+          nullable: true
+          description: Вложенный json-объект с информацией о калибровке и вытягивании изображения с камеры. Может быть `null`.
+          additionalProperties: true
+          example:
+            image_width: 1920
+            image_height: 1080
+            K:
+              - [1739.237279181759, 0.0, 947.5335576199107]
+              - [0.0, 2244.705015334057, 564.6946579168148]
+              - [0.0, 0.0, 1.0]
+            D: [-0.37, 0.05, 0.03, 0.01]
+            balance: 0.0
+            model: "opencv_fisheye_k1k2k3k4"
 
     ZonePoint:
       type: object
@@ -851,12 +933,10 @@ components:
           minimum: -180
           maximum: 180
         x:
-          type: number
-          format: double
+          type: integer
           minimum: 0
         y:
-          type: number
-          format: double
+          type: integer
           minimum: 0
 
     Zone:
@@ -864,7 +944,6 @@ components:
       description: Объект зоны в ответах API.
       required:
         - zone_id
-        - camera_id
         - zone_type
         - capacity
         - pay
@@ -877,6 +956,7 @@ components:
           example: 1
         camera_id:
           type: integer
+          description: ID камеры, к которой относится зона. Может отсутствовать в ответе при запросе без авторизации.
           example: 1
         zone_type:
           type: string
@@ -983,83 +1063,3 @@ components:
           maxItems: 4
           items:
             $ref: "#/components/schemas/ZonePoint"
-
-    CarDetection:
-      type: object
-      description: Элемент в массиве `cars`.
-      required:
-        - confidence
-        - points
-      properties:
-        confidence:
-          type: number
-          format: double
-          minimum: 0
-          maximum: 1
-          example: 0.89
-        points:
-          type: array
-          minItems: 4
-          maxItems: 4
-          items:
-            type: array
-            minItems: 2
-            maxItems: 2
-            items:
-              type: number
-              format: double
-          example:
-            - - 23
-              - 28
-            - - 87
-              - 28
-            - - 87
-              - 42
-            - - 23
-              - 42
-
-    PostCarsRequest:
-      type: object
-      description: Принимает результаты детекции автомобилей с конкретной камеры за один кадр.
-      required:
-        - camera_id
-        - detection_timestamp
-        - cars
-      properties:
-        camera_id:
-          type: integer
-          minimum: 1
-        detection_timestamp:
-          type: string
-          format: date-time
-          example: "2025-10-08T09:12:00Z"
-        cars:
-          type: array
-          description: Список всех детекций по камере за данный кадр (допускается пустой список).
-          items:
-            $ref: "#/components/schemas/CarDetection"
-
-    CarsLongPollResponse:
-      type: object
-      description: Пакет обновлений детекций по одной камере.
-      required:
-        - camera_id
-        - since
-        - next_since
-        - cars
-      properties:
-        camera_id:
-          type: integer
-          example: 1
-        since:
-          type: string
-          format: date-time
-          example: "2025-10-08T09:12:00Z"
-        next_since:
-          type: string
-          format: date-time
-          example: "2025-10-08T09:12:30Z"
-        cars:
-          type: array
-          items:
-            $ref: "#/components/schemas/CarDetection"
