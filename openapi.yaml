@@ -1,927 +1,2708 @@
 openapi: 3.0.3
 info:
   title: ParkTrack API
-  version: "v1.0"
-  description: |
-    Полезные ссылки:
-    
-    [Основная документация API](https://docs.parktrack.live/docs/api)
-    
-    [Редактировать эту Swagger документацию](https://github.com/ParkTrack-Project/api-docs-swagger/blob/main/openapi.yaml)
-    
-    [Редактор OpenAPI от Swagger](https://editor.swagger.io/)
-    
-    [GitHub организация](https://github.com/parktrack-project)
-
-    ---
-    
-    **Base address:** `https://api.parktrack.live`
-
-    ## Авторизация
-    
-    Для MVP используется один системный access_token с полным доступом ко всему API (v1 — System Token Only).
-    Токен можно получить в Telegram-чате команды.
-    
-    ## Формат данных
-
-    ### Время
-    Время передается в UTC в строковом представлении в формате ISO 8601, с постфиксом `Z`.
-    Например, `2025-10-08T09:12:00Z`.
-
-    ### Опорные точки
-    Для упрощения рендеринга парковочных зон, порядок выбора 4 опорных точек записывается Labeler
-    при разметке. Пользователю должно показываться сообщение, что отмечать точки нужно по часовой стрелке.
-    Сохраненный порядок точек должен сохраняться при передаче данных, а также при хранении на сервере.
-
+  version: 1.0.0
+  description: 'OpenAPI-спецификация, собранная по MDX-документации ParkTrack API. Базовый путь API: /api/v1.'
 servers:
-  - url: https://api.parktrack.live
-
+- url: https://api.parktrack.live/api/v1
+  description: Production
 security:
-  - bearerAuth: []
-
+- bearerAuth: []
 tags:
-  - name: Auth
-    description: v1 — System Token Only
-  - name: Cameras
-  - name: Parking Zones
-  - name: System
-
+- name: Auth
+  description: Регистрация, вход, выход и текущий пользователь.
+- name: Users
+  description: Профиль и управление пользователями.
+- name: Partners
+  description: Партнёры и сотрудники партнёров.
+- name: Cameras
+  description: Камеры и снапшоты.
+- name: Parking Zones
+  description: Парковочные зоны и геометрия.
+- name: Occupancy
+  description: Наблюдения занятости.
+- name: Forecasts
+  description: Прогнозы занятости.
+- name: Routing
+  description: Поиск парковки и маршруты.
+- name: Data Sources
+  description: Единый реестр источников данных.
+- name: Admin
+  description: Административный мониторинг и действия.
+- name: System
+  description: Служебные эндпоинты.
 paths:
+  /auth/register:
+    post:
+      tags:
+      - Auth
+      summary: Регистрация пользователя
+      operationId: authRegister
+      description: Создаёт обычного пользователя и новую сессию.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+      security: []
+  /auth/login:
+    post:
+      tags:
+      - Auth
+      summary: Вход пользователя
+      operationId: authLogin
+      description: Аутентифицирует пользователя и создаёт новую сессию.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+      security: []
+  /auth/logout:
+    post:
+      tags:
+      - Auth
+      summary: Выход пользователя
+      operationId: authLogout
+      description: Завершает текущую сессию.
+      responses:
+        '204':
+          $ref: '#/components/responses/NoContent'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /auth/me:
+    get:
+      tags:
+      - Auth
+      summary: Текущий пользователь и права
+      operationId: authMe
+      description: Возвращает пользователя, глобальные разрешения и партнёрские членства.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthMeResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /users/me:
+    get:
+      tags:
+      - Users
+      summary: Профиль текущего пользователя
+      operationId: getMe
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfile'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    put:
+      tags:
+      - Users
+      summary: Обновить профиль текущего пользователя
+      operationId: updateMe
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateMeRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+  /users/me/password:
+    put:
+      tags:
+      - Users
+      summary: Сменить пароль текущего пользователя
+      operationId: changeMyPassword
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChangePasswordRequest'
+      responses:
+        '204':
+          $ref: '#/components/responses/NoContent'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+  /users:
+    get:
+      tags:
+      - Users
+      summary: Список пользователей
+      operationId: listUsers
+      parameters:
+      - $ref: '#/components/parameters/Q'
+      - name: role
+        in: query
+        required: false
+        schema:
+          type: string
+        description: Глобальная роль.
+      - name: is_active
+        in: query
+        required: false
+        schema:
+          type: boolean
+        description: Фильтр по активности.
+      - &id001
+        $ref: '#/components/parameters/Top'
+      - &id002
+        $ref: '#/components/parameters/Offset'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserListResponse'
+        '401': &id003
+          $ref: '#/components/responses/Unauthorized'
+        '403': &id004
+          $ref: '#/components/responses/Forbidden'
+    post:
+      tags:
+      - Users
+      summary: Создать пользователя
+      operationId: createUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateUserRequest'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserIdResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+  /users/{user_id}:
+    get:
+      tags:
+      - Users
+      summary: Получить пользователя
+      operationId: getUser
+      parameters:
+      - $ref: '#/components/parameters/UserId'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfile'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags:
+      - Users
+      summary: Обновить пользователя
+      operationId: updateUser
+      parameters:
+      - $ref: '#/components/parameters/UserId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateUserRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+    delete:
+      tags:
+      - Users
+      summary: Деактивировать пользователя
+      operationId: deleteUser
+      parameters:
+      - $ref: '#/components/parameters/UserId'
+      responses:
+        '204':
+          $ref: '#/components/responses/NoContent'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /partners:
+    get:
+      tags:
+      - Partners
+      summary: Список партнёров
+      operationId: listPartners
+      parameters:
+      - $ref: '#/components/parameters/Q'
+      - name: is_active
+        in: query
+        required: false
+        schema:
+          type: boolean
+        description: Фильтр по активности.
+      - *id001
+      - *id002
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PartnerListResponse'
+        '401': *id003
+        '403': *id004
+    post:
+      tags:
+      - Partners
+      summary: Создать партнёра
+      operationId: createPartner
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PartnerCreateRequest'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PartnerIdResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+  /partners/{partner_id}:
+    get:
+      tags:
+      - Partners
+      summary: Получить партнёра
+      operationId: getPartner
+      parameters:
+      - $ref: '#/components/parameters/PartnerId'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Partner'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags:
+      - Partners
+      summary: Обновить партнёра
+      operationId: updatePartner
+      parameters:
+      - $ref: '#/components/parameters/PartnerId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PartnerUpdateRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Partner'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+    delete:
+      tags:
+      - Partners
+      summary: Деактивировать партнёра
+      operationId: deletePartner
+      parameters:
+      - $ref: '#/components/parameters/PartnerId'
+      responses:
+        '204':
+          $ref: '#/components/responses/NoContent'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /partners/{partner_id}/members:
+    get:
+      tags:
+      - Partners
+      summary: Список сотрудников партнёра
+      operationId: listPartnerMembers
+      parameters:
+      - $ref: '#/components/parameters/PartnerId'
+      - $ref: '#/components/parameters/Q'
+      - name: is_active
+        in: query
+        required: false
+        schema:
+          type: boolean
+      - name: role
+        in: query
+        required: false
+        schema:
+          $ref: '#/components/schemas/PartnerRole'
+      - *id001
+      - *id002
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PartnerMembershipListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    post:
+      tags:
+      - Partners
+      summary: Добавить сотрудника партнёра
+      operationId: createPartnerMember
+      parameters:
+      - $ref: '#/components/parameters/PartnerId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PartnerMemberCreateRequest'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PartnerMembership'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+  /partners/{partner_id}/members/{user_id}:
+    get:
+      tags:
+      - Partners
+      summary: Получить членство пользователя в партнёре
+      operationId: getPartnerMember
+      parameters:
+      - $ref: '#/components/parameters/PartnerId'
+      - $ref: '#/components/parameters/UserId'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PartnerMembership'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags:
+      - Partners
+      summary: Обновить членство пользователя в партнёре
+      operationId: updatePartnerMember
+      parameters:
+      - $ref: '#/components/parameters/PartnerId'
+      - $ref: '#/components/parameters/UserId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PartnerMemberUpdateRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PartnerMembership'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+    delete:
+      tags:
+      - Partners
+      summary: Отключить пользователя от партнёра
+      operationId: deletePartnerMember
+      parameters:
+      - $ref: '#/components/parameters/PartnerId'
+      - $ref: '#/components/parameters/UserId'
+      responses:
+        '204':
+          $ref: '#/components/responses/NoContent'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
   /cameras:
     get:
       tags:
-        - Cameras
-      summary: Получить список камер
-      description: Возвращает список всех зарегистрированных камер. Используется для получения каталога камер и отображения их в интерфейсе `labeler`.
+      - Cameras
+      summary: Список камер
+      operationId: listCameras
       parameters:
-        - in: query
-          name: q
-          schema:
-            type: string
-          description: Фильтр по подстроке в `title`.
-        - in: query
-          name: top_left_corner_latitude
-          schema:
-            type: number
-            format: double
-            minimum: -90
-            maximum: 90
-          description: Широта левого верхнего угла окна просмотра камер (опционально).
-        - in: query
-          name: top_left_corner_longitude
-          schema:
-            type: number
-            format: double
-            minimum: -180
-            maximum: 180
-          description: Долгота левого верхнего угла окна просмотра камер (опционально).
-        - in: query
-          name: bottom_right_corner_latitude
-          schema:
-            type: number
-            format: double
-            minimum: -90
-            maximum: 90
-          description: Широта правого нижнего угла окна просмотра камер (опционально).
-        - in: query
-          name: bottom_right_corner_longitude
-          schema:
-            type: number
-            format: double
-            minimum: -180
-            maximum: 180
-          description: Долгота правого нижнего угла окна просмотра камер (опционально).
+      - $ref: '#/components/parameters/Q'
+      - name: partner_id
+        in: query
+        required: false
+        schema:
+          type: integer
+      - name: is_active
+        in: query
+        required: false
+        schema:
+          type: boolean
+      - $ref: '#/components/parameters/BBox'
+      - name: view
+        in: query
+        required: false
+        schema:
+          type: string
+          enum:
+          - full
+          - map
+        description: full по умолчанию; map для карты.
       responses:
-        "200":
-          description: Список объектов Camera.
+        '200':
+          description: OK
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/Camera"
-              examples:
-                sample:
-                  value:
-                    - camera_id: 1
-                      title: "Кронверкский просп., парковка напротив ИТМО"
-                      source: "rtsp://..."
-                      image_width: 1920
-                      image_height: 1080
-                      calib:
-                        image_width: 1920
-                        image_height: 1080
-                        K:
-                          - [1739.237279181759, 0.0, 947.5335576199107]
-                          - [0.0, 2244.705015334057, 564.6946579168148]
-                          - [0.0, 0.0, 1.0]
-                        D: [-0.37, 0.05, 0.03, 0.01]
-                        balance: 0.0
-                        model: "opencv_fisheye_k1k2k3k4"
-                      latitude: 59.955976
-                      longitude: 30.309426
-                      created_at: "2025-10-08T09:12:00Z"
-                      updated_at: "2025-10-08T09:12:00Z"
-                    - camera_id: 2
-                      title: "Ломоносова, 9 — двор"
-                      source: "https://... .m3u8"
-                      image_width: 1920
-                      image_height: 1080
-                      calib: null
-                      latitude: 59.927366
-                      longitude: 30.338487
-                      created_at: "2025-10-08T09:15:00Z"
-                      updated_at: "2025-10-08T09:15:00Z"
-        "401":
-          $ref: "#/components/responses/UnauthorizedError"
-        "422":
-          description: Валидация не пройдена (например, координаты окна просмотра заданы некорректно).
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-        "500":
-          $ref: "#/components/responses/InternalError"
-        "503":
-          $ref: "#/components/responses/ServiceUnavailable"
-
+                oneOf:
+                - type: array
+                  items:
+                    $ref: '#/components/schemas/Camera'
+                - type: array
+                  items:
+                    $ref: '#/components/schemas/CameraMapItem'
+        '401': *id003
+        '403': *id004
+        '422':
+          $ref: '#/components/responses/ValidationError'
   /cameras/new:
     post:
       tags:
-        - Cameras
-      summary: Создать новую камеру
+      - Cameras
+      summary: Создать камеру
+      operationId: createCamera
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/CreateCameraRequest"
-            examples:
-              sample:
-                value:
-                  title: "Кронверкский просп., парковка напротив ИТМО"
-                  source: "https://... .m3u8"
-                  image_width: 1920
-                  image_height: 1080
-                  calib: null
-                  latitude: 59.955976
-                  longitude: 30.309426
+              $ref: '#/components/schemas/CameraCreateRequest'
       responses:
-        "201":
-          description: Числовой идентификатор созданной камеры.
+        '201':
+          description: Created
           content:
             application/json:
               schema:
-                type: object
-                required:
-                  - camera_id
-                properties:
-                  camera_id:
-                    type: integer
-                    example: 1
-        "400":
-          $ref: "#/components/responses/BadRequest"
-        "401":
-          $ref: "#/components/responses/UnauthorizedError"
-        "403":
-          $ref: "#/components/responses/ForbiddenError"
-        "409":
-          description: Камера с таким `title` уже существует.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-        "415":
-          $ref: "#/components/responses/UnsupportedMediaType"
-        "422":
-          description: Валидация не пройдена (например, `title` пустой или слишком длинный).
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-        "500":
-          $ref: "#/components/responses/InternalError"
-        "503":
-          $ref: "#/components/responses/ServiceUnavailable"
-
-  /cameras/{camera_id}:
-    get:
-      tags:
-        - Cameras
-      summary: Получить информацию о камере
-      parameters:
-        - $ref: "#/components/parameters/CameraId"
-      responses:
-        "200":
-          description: Объект Camera.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Camera"
-              examples:
-                sample:
-                  value:
-                    camera_id: 1
-                    title: "Кронверкский просп., парковка напротив ИТМО"
-                    source: "https://... .m3u8"
-                    image_width: 1920
-                    image_height: 1080
-                    calib: null
-                    latitude: 59.955976
-                    longitude: 30.309426
-                    created_at: "2025-10-08T08:00:00Z"
-                    updated_at: "2025-10-08T08:10:00Z"
-        "401":
-          $ref: "#/components/responses/UnauthorizedError"
-        "404":
-          $ref: "#/components/responses/NotFoundError"
-        "500":
-          $ref: "#/components/responses/InternalError"
-        "503":
-          $ref: "#/components/responses/ServiceUnavailable"
-    put:
-      tags:
-        - Cameras
-      summary: Обновить данные камеры (частично или полностью)
-      parameters:
-        - $ref: "#/components/parameters/CameraId"
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/UpdateCameraRequest"
-      responses:
-        "200":
-          description: Объект Camera (актуальное состояние после обновления).
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Camera"
-        "400":
-          $ref: "#/components/responses/BadRequest"
-        "401":
-          $ref: "#/components/responses/UnauthorizedError"
-        "403":
-          $ref: "#/components/responses/ForbiddenError"
-        "404":
-          $ref: "#/components/responses/NotFoundError"
-        "409":
-          description: Конфликт уникальности `title`.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-        "415":
-          $ref: "#/components/responses/UnsupportedMediaType"
-        "422":
-          description: Валидация не пройдена (`title` пустой/слишком длинный; `latitude`/`longitude` вне диапазона).
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-        "500":
-          $ref: "#/components/responses/InternalError"
-        "503":
-          $ref: "#/components/responses/ServiceUnavailable"
-    delete:
-      tags:
-        - Cameras
-      summary: Удалить камеру (и связанные данные)
-      description: Удаляет камеру и **все связанные с ней парковочные зоны и данные** (при их наличии). Действие **необратимо**.
-      parameters:
-        - $ref: "#/components/parameters/CameraId"
-      responses:
-        "204":
-          description: Камера успешно удалена (тело отсутствует).
-        "401":
-          $ref: "#/components/responses/UnauthorizedError"
-        "403":
-          $ref: "#/components/responses/ForbiddenError"
-        "404":
-          $ref: "#/components/responses/NotFoundError"
-        "409":
-          description: Удаление невозможно из-за зависимостей (есть парковочные зоны с этой камерой).
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-        "500":
-          $ref: "#/components/responses/InternalError"
-        "503":
-          $ref: "#/components/responses/ServiceUnavailable"
-
+                $ref: '#/components/schemas/CameraIdResponse'
+        '400': &id005
+          $ref: '#/components/responses/BadRequest'
+        '401': &id006
+          $ref: '#/components/responses/Unauthorized'
+        '403': &id007
+          $ref: '#/components/responses/Forbidden'
+        '404': &id008
+          $ref: '#/components/responses/NotFound'
+        '409': &id009
+          $ref: '#/components/responses/Conflict'
+        '415': &id010
+          $ref: '#/components/responses/UnsupportedMediaType'
+        '422': &id011
+          $ref: '#/components/responses/ValidationError'
   /cameras/next:
     get:
       tags:
-        - Cameras
-      summary: Получить следующую камеру для детекции
-      description: |
-        Возвращает следующую камеру для очередной детекции автомобилей.
-        Камеры перебираются по кругу по их идентификаторам.
+      - Cameras
+      summary: Следующая камера для обработки
+      operationId: getNextCamera
       responses:
-        "200":
-          description: Данные следующей камеры.
+        '200':
+          description: OK
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/CamerasNextResponse"
-              examples:
-                with_calib:
-                  value:
-                    camera_id: 1
-                    source: "https://<path>.m3u8"
-                    image_width: 1920
-                    image_height: 1080
-                    calib:
-                      image_width: 1920
-                      image_height: 1080
-                      K:
-                        - [1739.237279181759, 0.0, 947.5335576199107]
-                        - [0.0, 2244.705015334057, 564.6946579168148]
-                        - [0.0, 0.0, 1.0]
-                      D: [-0.37, 0.05, 0.03, 0.01]
-                      balance: 0.0
-                      model: "opencv_fisheye_k1k2k3k4"
-                without_calib:
-                  value:
-                    camera_id: 1
-                    source: "https://<path>.m3u8"
-                    image_width: 1920
-                    image_height: 1080
-                    calib: null
-        "401":
-          $ref: "#/components/responses/UnauthorizedError"
-        "404":
-          description: Не добавлено ни одной камеры.
+                $ref: '#/components/schemas/CameraNext'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /cameras/{camera_id}:
+    get:
+      tags:
+      - Cameras
+      summary: Получить камеру
+      operationId: getCamera
+      parameters:
+      - $ref: '#/components/parameters/CameraId'
+      responses:
+        '200':
+          description: OK
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Error"
-        "500":
-          $ref: "#/components/responses/InternalError"
-        "503":
-          $ref: "#/components/responses/ServiceUnavailable"
-
+                $ref: '#/components/schemas/Camera'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags:
+      - Cameras
+      summary: Обновить камеру
+      operationId: updateCamera
+      parameters:
+      - $ref: '#/components/parameters/CameraId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CameraUpdateRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Camera'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+    delete:
+      tags:
+      - Cameras
+      summary: Удалить камеру
+      operationId: deleteCamera
+      parameters:
+      - $ref: '#/components/parameters/CameraId'
+      responses:
+        '204':
+          $ref: '#/components/responses/NoContent'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
   /cameras/{camera_id}/snapshot:
     get:
       tags:
-        - Cameras
-      summary: Получить кадр из видеопотока камеры
-      description: Возвращает изображение (кадр) из видеопотока `source` камеры.
+      - Cameras
+      summary: Снапшот камеры
+      operationId: getCameraSnapshot
       parameters:
-        - $ref: "#/components/parameters/CameraId"
+      - $ref: '#/components/parameters/CameraId'
+      - name: annotated
+        in: query
+        required: false
+        schema:
+          type: boolean
+      - name: fallback_to_raw
+        in: query
+        required: false
+        schema:
+          type: boolean
       responses:
-        "200":
-          description: Изображение (снимок) с камеры.
+        '200':
+          description: Image
           content:
             image/jpeg:
               schema:
                 type: string
                 format: binary
-        "401":
-          $ref: "#/components/responses/UnauthorizedError"
-        "404":
-          description: Камера с указанным `camera_id` не найдена.
-          content:
-            application/json:
+            image/png:
               schema:
-                $ref: "#/components/schemas/Error"
-        "500":
-          $ref: "#/components/responses/InternalError"
-        "503":
-          $ref: "#/components/responses/ServiceUnavailable"
-
+                type: string
+                format: binary
+            image/webp:
+              schema:
+                type: string
+                format: binary
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
   /zones:
     get:
       tags:
-        - Parking Zones
-      summary: Получить список парковочных зон
-      description: |
-        Возвращает список всех парковочных зон.
-        Авторизация не обязательна; при запросе без токена поле `camera_id` в объектах Zone может отсутствовать.
-      security:
-        - {}
-        - bearerAuth: []
+      - Parking Zones
+      summary: Список парковочных зон
+      operationId: listZones
       parameters:
-        - in: query
-          name: camera_id
-          schema:
-            type: integer
-            minimum: 1
-          description: Вернуть зоны только указанной камеры.
-        - in: query
-          name: min_free_count
-          schema:
-            type: integer
-            minimum: 0
-          description: Фильтр по минимальному количеству свободных мест в зоне.
-        - in: query
-          name: max_pay
-          schema:
-            type: integer
-            minimum: 0
-          description: Фильтр по максимальной цене парковки в зоне за час.
+      - name: camera_id
+        in: query
+        required: false
+        schema:
+          type: integer
+      - name: partner_id
+        in: query
+        required: false
+        schema:
+          type: integer
+      - name: is_active
+        in: query
+        required: false
+        schema:
+          type: boolean
+      - name: min_free_count
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+      - name: min_confidence
+        in: query
+        required: false
+        schema:
+          type: number
+          format: double
+          minimum: 0
+          maximum: 1
+      - name: max_pay
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+      - name: include_private
+        in: query
+        required: false
+        schema:
+          type: boolean
+      - name: include_accessible
+        in: query
+        required: false
+        schema:
+          type: boolean
+      - name: hide_location_types
+        in: query
+        required: false
+        schema:
+          type: string
+      - $ref: '#/components/parameters/BBox'
+      - name: view
+        in: query
+        required: false
+        schema:
+          type: string
+          enum:
+          - full
+          - map
       responses:
-        "200":
-          description: Массив объектов Zone.
+        '200':
+          description: OK
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/Zone"
-        "401":
-          $ref: "#/components/responses/UnauthorizedError"
-        "500":
-          $ref: "#/components/responses/InternalError"
-        "503":
-          $ref: "#/components/responses/ServiceUnavailable"
-
+                oneOf:
+                - type: array
+                  items:
+                    $ref: '#/components/schemas/Zone'
+                - type: array
+                  items:
+                    $ref: '#/components/schemas/ZoneMapItem'
+        '401': *id003
+        '403': *id004
+        '422':
+          $ref: '#/components/responses/ValidationError'
   /zones/new:
     post:
       tags:
-        - Parking Zones
-      summary: Создать новую парковочную зону
+      - Parking Zones
+      summary: Создать парковочную зону
+      operationId: createZone
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/CreateZoneRequest"
-            examples:
-              sample:
-                value:
-                  camera_id: 1
-                  zone_type: "parallel"
-                  capacity: 7
-                  pay: 0
-                  points:
-                    - latitude: 59.955976
-                      longitude: 30.309426
-                      x: 45
-                      y: 23
-                    - latitude: 59.956008
-                      longitude: 30.309358
-                      x: 87
-                      y: 25
-                    - latitude: 59.956231
-                      longitude: 30.309979
-                      x: 79
-                      y: 149
-                    - latitude: 59.956201
-                      longitude: 30.310043
-                      x: 32
-                      y: 145
+              $ref: '#/components/schemas/ZoneCreateRequest'
       responses:
-        "201":
-          description: ID созданной зоны.
+        '201':
+          description: Created
           content:
             application/json:
               schema:
-                type: object
-                required:
-                  - zone_id
-                properties:
-                  zone_id:
-                    type: integer
-                    example: 1
-        "400":
-          $ref: "#/components/responses/BadRequest"
-        "401":
-          $ref: "#/components/responses/UnauthorizedError"
-        "403":
-          $ref: "#/components/responses/ForbiddenError"
-        "404":
-          description: Камера с указанным `camera_id` не существует.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-        "415":
-          $ref: "#/components/responses/UnsupportedMediaType"
-        "422":
-          description: Валидация не пройдена (диапазоны координат/ровно 4 точки/`capacity`/`pay`).
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-        "500":
-          $ref: "#/components/responses/InternalError"
-        "503":
-          $ref: "#/components/responses/ServiceUnavailable"
-
+                $ref: '#/components/schemas/ZoneIdResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationError'
   /zones/{zone_id}:
     get:
       tags:
-        - Parking Zones
-      summary: Получить данные о конкретной зоне
-      description: |
-        Возвращает данные о конкретной парковочной зоне.
-        Авторизация не обязательна; при запросе без токена поле `camera_id` может отсутствовать.
-      security:
-        - {}
-        - bearerAuth: []
+      - Parking Zones
+      summary: Получить парковочную зону
+      operationId: getZone
       parameters:
-        - $ref: "#/components/parameters/ZoneId"
+      - $ref: '#/components/parameters/ZoneId'
       responses:
-        "200":
-          description: Объект Zone.
+        '200':
+          description: OK
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Zone"
-        "401":
-          $ref: "#/components/responses/UnauthorizedError"
-        "404":
-          $ref: "#/components/responses/NotFoundError"
-        "500":
-          $ref: "#/components/responses/InternalError"
-        "503":
-          $ref: "#/components/responses/ServiceUnavailable"
+                $ref: '#/components/schemas/Zone'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
     put:
       tags:
-        - Parking Zones
-      summary: Обновить данные парковочной зоны (частично или полностью)
+      - Parking Zones
+      summary: Обновить парковочную зону
+      operationId: updateZone
       parameters:
-        - $ref: "#/components/parameters/ZoneId"
+      - $ref: '#/components/parameters/ZoneId'
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/UpdateZoneRequest"
+              $ref: '#/components/schemas/ZoneUpdateRequest'
       responses:
-        "200":
-          description: Объект Zone после обновления.
+        '200':
+          description: OK
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Zone"
-        "400":
-          $ref: "#/components/responses/BadRequest"
-        "401":
-          $ref: "#/components/responses/UnauthorizedError"
-        "403":
-          $ref: "#/components/responses/ForbiddenError"
-        "404":
-          description: "`zone_id` не существует, либо (при смене `camera_id`) указанная камера не найдена."
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-        "415":
-          $ref: "#/components/responses/UnsupportedMediaType"
-        "422":
-          description: Валидация не пройдена (`capacity`/`occupied`/`confidence`/`points`/диапазоны координат).
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-        "500":
-          $ref: "#/components/responses/InternalError"
-        "503":
-          $ref: "#/components/responses/ServiceUnavailable"
+                $ref: '#/components/schemas/Zone'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/ValidationError'
     delete:
       tags:
-        - Parking Zones
+      - Parking Zones
       summary: Удалить парковочную зону
+      operationId: deleteZone
       parameters:
-        - $ref: "#/components/parameters/ZoneId"
+      - $ref: '#/components/parameters/ZoneId'
       responses:
-        "204":
-          description: Зона успешно удалена (тело отсутствует).
-        "401":
-          $ref: "#/components/responses/UnauthorizedError"
-        "403":
-          $ref: "#/components/responses/ForbiddenError"
-        "404":
-          $ref: "#/components/responses/NotFoundError"
-        "409":
-          description: Удаление невозможно (конфликт).
+        '204':
+          $ref: '#/components/responses/NoContent'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /occupancy:
+    get:
+      tags:
+      - Occupancy
+      summary: Наблюдения занятости
+      operationId: listOccupancy
+      parameters:
+      - name: zone_id
+        in: query
+        required: false
+        schema:
+          type: integer
+      - name: camera_id
+        in: query
+        required: false
+        schema:
+          type: integer
+      - name: partner_id
+        in: query
+        required: false
+        schema:
+          type: integer
+      - name: source_type
+        in: query
+        required: false
+        schema:
+          $ref: '#/components/schemas/ObservationSourceType'
+      - name: from
+        in: query
+        required: false
+        schema:
+          type: string
+          format: date-time
+      - name: to
+        in: query
+        required: false
+        schema:
+          type: string
+          format: date-time
+      - name: at
+        in: query
+        required: false
+        schema:
+          type: string
+          format: date-time
+      - name: latest_only
+        in: query
+        required: false
+        schema:
+          type: boolean
+      - $ref: '#/components/parameters/BBox'
+      - name: view
+        in: query
+        required: false
+        schema:
+          type: string
+          enum:
+          - observations
+          - series
+          - map
+      responses:
+        '200':
+          description: OK
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Error"
-        "500":
-          $ref: "#/components/responses/InternalError"
-        "503":
-          $ref: "#/components/responses/ServiceUnavailable"
-
+                oneOf:
+                - type: array
+                  items:
+                    $ref: '#/components/schemas/OccupancyObservation'
+                - type: array
+                  items:
+                    $ref: '#/components/schemas/OccupancySeriesPoint'
+                - type: array
+                  items:
+                    $ref: '#/components/schemas/OccupancyMapItem'
+        '401': *id003
+        '403': *id004
+        '422':
+          $ref: '#/components/responses/ValidationError'
+  /occupancy/new:
+    post:
+      tags:
+      - Occupancy
+      summary: Создать наблюдение занятости
+      operationId: createOccupancy
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OccupancyCreateRequest'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ObservationIdResponse'
+        '400': *id005
+        '401': *id006
+        '403': *id007
+        '404': *id008
+        '409': *id009
+        '415': *id010
+        '422': *id011
+  /occupancy/{observation_id}:
+    get:
+      tags:
+      - Occupancy
+      summary: Получить наблюдение занятости
+      operationId: getOccupancy
+      parameters:
+      - $ref: '#/components/parameters/ObservationId'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OccupancyObservation'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags:
+      - Occupancy
+      summary: Обновить наблюдение занятости
+      operationId: updateOccupancy
+      parameters:
+      - $ref: '#/components/parameters/ObservationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OccupancyUpdateRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OccupancyObservation'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+    delete:
+      tags:
+      - Occupancy
+      summary: Удалить наблюдение занятости
+      operationId: deleteOccupancy
+      parameters:
+      - $ref: '#/components/parameters/ObservationId'
+      responses:
+        '204':
+          $ref: '#/components/responses/NoContent'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /forecasts:
+    get:
+      tags:
+      - Forecasts
+      summary: Прогнозы занятости
+      operationId: listForecasts
+      parameters:
+      - name: zone_id
+        in: query
+        required: false
+        schema:
+          type: integer
+      - name: camera_id
+        in: query
+        required: false
+        schema:
+          type: integer
+      - name: partner_id
+        in: query
+        required: false
+        schema:
+          type: integer
+      - name: model_type
+        in: query
+        required: false
+        schema:
+          $ref: '#/components/schemas/ForecastModelType'
+      - name: generated_from
+        in: query
+        required: false
+        schema:
+          type: string
+          format: date-time
+      - name: generated_to
+        in: query
+        required: false
+        schema:
+          type: string
+          format: date-time
+      - name: from
+        in: query
+        required: false
+        schema:
+          type: string
+          format: date-time
+      - name: to
+        in: query
+        required: false
+        schema:
+          type: string
+          format: date-time
+      - name: at
+        in: query
+        required: false
+        schema:
+          type: string
+          format: date-time
+      - name: latest_model_only
+        in: query
+        required: false
+        schema:
+          type: boolean
+      - $ref: '#/components/parameters/BBox'
+      - name: view
+        in: query
+        required: false
+        schema:
+          type: string
+          enum:
+          - points
+          - series
+          - map
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                oneOf:
+                - type: array
+                  items:
+                    $ref: '#/components/schemas/ForecastPoint'
+                - type: array
+                  items:
+                    $ref: '#/components/schemas/ForecastSeriesPoint'
+                - type: array
+                  items:
+                    $ref: '#/components/schemas/ForecastMapItem'
+        '401': *id003
+        '403': *id004
+        '422':
+          $ref: '#/components/responses/ValidationError'
+  /forecasts/new:
+    post:
+      tags:
+      - Forecasts
+      summary: Создать прогнозную точку
+      operationId: createForecast
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ForecastCreateRequest'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ForecastIdResponse'
+        '400': *id005
+        '401': *id006
+        '403': *id007
+        '404': *id008
+        '409': *id009
+        '415': *id010
+        '422': *id011
+  /forecasts/{forecast_id}:
+    get:
+      tags:
+      - Forecasts
+      summary: Получить прогнозную точку
+      operationId: getForecast
+      parameters:
+      - $ref: '#/components/parameters/ForecastId'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ForecastPoint'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags:
+      - Forecasts
+      summary: Обновить прогнозную точку
+      operationId: updateForecast
+      parameters:
+      - $ref: '#/components/parameters/ForecastId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ForecastUpdateRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ForecastPoint'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+    delete:
+      tags:
+      - Forecasts
+      summary: Удалить прогнозную точку
+      operationId: deleteForecast
+      parameters:
+      - $ref: '#/components/parameters/ForecastId'
+      responses:
+        '204':
+          $ref: '#/components/responses/NoContent'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /routing/search:
+    post:
+      tags:
+      - Routing
+      summary: Поиск подходящих парковок
+      operationId: searchRoutes
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RouteSearchRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RouteSearchResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+  /routing/new:
+    post:
+      tags:
+      - Routing
+      summary: Создать маршрут
+      operationId: createRoute
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RouteCreateRequest'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Route'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+  /routing:
+    get:
+      tags:
+      - Routing
+      summary: Маршруты текущего пользователя
+      operationId: listRoutes
+      parameters:
+      - name: status
+        in: query
+        required: false
+        schema:
+          $ref: '#/components/schemas/RouteStatus'
+      - name: mode
+        in: query
+        required: false
+        schema:
+          $ref: '#/components/schemas/RouteMode'
+      - *id001
+      - *id002
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RouteListResponse'
+        '401': *id003
+        '403': *id004
+  /routing/{route_id}:
+    get:
+      tags:
+      - Routing
+      summary: Получить маршрут
+      operationId: getRoute
+      parameters:
+      - $ref: '#/components/parameters/RouteId'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Route'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags:
+      - Routing
+      summary: Обновить маршрут
+      operationId: updateRoute
+      parameters:
+      - $ref: '#/components/parameters/RouteId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RouteUpdateRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Route'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+    delete:
+      tags:
+      - Routing
+      summary: Удалить маршрут
+      operationId: deleteRoute
+      parameters:
+      - $ref: '#/components/parameters/RouteId'
+      responses:
+        '204':
+          $ref: '#/components/responses/NoContent'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /sources:
+    get:
+      tags:
+      - Data Sources
+      summary: Список источников данных
+      operationId: listSources
+      parameters:
+      - name: partner_id
+        in: query
+        required: false
+        schema:
+          type: integer
+      - name: source_type
+        in: query
+        required: false
+        schema:
+          $ref: '#/components/schemas/DataSourceType'
+      - name: entity_type
+        in: query
+        required: false
+        schema:
+          $ref: '#/components/schemas/DataSourceEntityType'
+      - name: status
+        in: query
+        required: false
+        schema:
+          $ref: '#/components/schemas/DataSourceStatus'
+      - name: is_active
+        in: query
+        required: false
+        schema:
+          type: boolean
+      - $ref: '#/components/parameters/Q'
+      - *id001
+      - *id002
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataSourceListResponse'
+        '401': *id003
+        '403': *id004
+  /sources/{source_id}:
+    get:
+      tags:
+      - Data Sources
+      summary: Получить источник данных
+      operationId: getSource
+      parameters:
+      - $ref: '#/components/parameters/SourceId'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataSource'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /admin/overview:
+    get:
+      tags:
+      - Admin
+      summary: Административный обзор системы
+      operationId: getAdminOverview
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminOverview'
+        '401': *id003
+        '403': *id004
+  /admin/cameras:
+    get:
+      tags:
+      - Admin
+      summary: Административный мониторинг камер
+      operationId: listAdminCameras
+      parameters:
+      - name: partner_id
+        in: query
+        required: false
+        schema:
+          type: integer
+      - name: camera_status
+        in: query
+        required: false
+        schema:
+          $ref: '#/components/schemas/CameraStatus'
+      - name: processing_status
+        in: query
+        required: false
+        schema:
+          $ref: '#/components/schemas/ProcessingStatus'
+      - name: is_active
+        in: query
+        required: false
+        schema:
+          type: boolean
+      - $ref: '#/components/parameters/Q'
+      - *id001
+      - *id002
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminCameraListResponse'
+        '401': *id003
+        '403': *id004
+  /admin/cameras/{camera_id}:
+    get:
+      tags:
+      - Admin
+      summary: Административная информация по камере
+      operationId: getAdminCamera
+      parameters:
+      - $ref: '#/components/parameters/CameraId'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminCameraMonitorItem'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /admin/cameras/{camera_id}/snapshot:
+    get:
+      tags:
+      - Admin
+      summary: Административный снапшот камеры
+      operationId: getAdminCameraSnapshot
+      parameters:
+      - $ref: '#/components/parameters/CameraId'
+      - name: annotated
+        in: query
+        required: false
+        schema:
+          type: boolean
+      - name: fallback_to_raw
+        in: query
+        required: false
+        schema:
+          type: boolean
+      responses:
+        '200':
+          description: Image
+          content:
+            image/jpeg:
+              schema:
+                type: string
+                format: binary
+            image/png:
+              schema:
+                type: string
+                format: binary
+            image/webp:
+              schema:
+                type: string
+                format: binary
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+  /admin/cameras/{camera_id}/snapshot/info:
+    get:
+      tags:
+      - Admin
+      summary: Метаданные снапшота камеры
+      operationId: getAdminCameraSnapshotInfo
+      parameters:
+      - $ref: '#/components/parameters/CameraId'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminSnapshotInfo'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /admin/cameras/{camera_id}/processing/restart:
+    post:
+      tags:
+      - Admin
+      summary: Перезапустить обработку камеры
+      operationId: restartCameraProcessing
+      parameters:
+      - $ref: '#/components/parameters/CameraId'
+      responses:
+        '202':
+          description: Accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AcceptedCameraResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /admin/zones:
+    get:
+      tags:
+      - Admin
+      summary: Административный список зон
+      operationId: listAdminZones
+      parameters:
+      - name: partner_id
+        in: query
+        required: false
+        schema:
+          type: integer
+      - name: camera_id
+        in: query
+        required: false
+        schema:
+          type: integer
+      - name: is_active
+        in: query
+        required: false
+        schema:
+          type: boolean
+      - name: updated_from
+        in: query
+        required: false
+        schema:
+          type: string
+          format: date-time
+      - name: updated_to
+        in: query
+        required: false
+        schema:
+          type: string
+          format: date-time
+      - *id001
+      - *id002
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ZoneListResponse'
+        '401': *id003
+        '403': *id004
+  /admin/zones/{zone_id}/recount:
+    post:
+      tags:
+      - Admin
+      summary: Запустить пересчёт зоны
+      operationId: recountAdminZone
+      parameters:
+      - $ref: '#/components/parameters/ZoneId'
+      responses:
+        '202':
+          description: Accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AcceptedZoneResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /admin/users:
+    get:
+      tags:
+      - Admin
+      summary: Административный список пользователей
+      operationId: listAdminUsers
+      parameters:
+      - $ref: '#/components/parameters/Q'
+      - name: role
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: is_active
+        in: query
+        required: false
+        schema:
+          type: boolean
+      - *id001
+      - *id002
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserListResponse'
+        '401': *id003
+        '403': *id004
+  /admin/partners:
+    get:
+      tags:
+      - Admin
+      summary: Административный список партнёров
+      operationId: listAdminPartners
+      parameters:
+      - $ref: '#/components/parameters/Q'
+      - name: is_active
+        in: query
+        required: false
+        schema:
+          type: boolean
+      - *id001
+      - *id002
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PartnerListResponse'
+        '401': *id003
+        '403': *id004
   /health:
     get:
       tags:
-        - System
-      summary: Health check
-      security: []
+      - System
+      summary: Проверка состояния API
+      operationId: getHealth
       responses:
-        "200":
-          description: Статус здоровья сервера и БД.
+        '200':
+          description: OK
           content:
             application/json:
               schema:
-                type: object
-                required:
-                  - status
-                properties:
-                  status:
-                    type: string
-                    enum:
-                      - healthy
-                      - degraded
-                    example: healthy
-        "500":
-          $ref: "#/components/responses/InternalError"
-
+                $ref: '#/components/schemas/HealthResponse'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+      security: []
   /version:
     get:
       tags:
-        - System
+      - System
       summary: Версия API
-      security: []
+      operationId: getVersion
       responses:
-        "200":
-          description: Текущая версия API.
+        '200':
+          description: OK
           content:
             application/json:
               schema:
-                type: object
-                required:
-                  - api_version
-                properties:
-                  api_version:
-                    type: string
-                    example: v0.0
-        "500":
-          $ref: "#/components/responses/InternalError"
-
+                $ref: '#/components/schemas/VersionResponse'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+      security: []
 components:
   securitySchemes:
     bearerAuth:
       type: http
       scheme: bearer
       bearerFormat: JWT
-
   parameters:
-    CameraId:
-      in: path
-      name: camera_id
-      required: true
+    Top:
+      name: top
+      in: query
+      required: false
       schema:
         type: integer
         minimum: 1
+        maximum: 100
+      description: Максимальное количество элементов.
+    Offset:
+      name: offset
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 0
+      description: Смещение для пагинации.
+    BBox:
+      name: bbox
+      in: query
+      required: false
+      schema:
+        type: string
+        example: 30.30,59.92,30.35,59.97
+      description: 'Пространственный фильтр: min_lon,min_lat,max_lon,max_lat'
+    Q:
+      name: q
+      in: query
+      required: false
+      schema:
+        type: string
+      description: Поиск по текстовым полям.
+    CameraId:
+      name: camera_id
+      in: path
+      required: true
+      schema:
+        type: integer
       description: Идентификатор камеры.
     ZoneId:
-      in: path
       name: zone_id
+      in: path
       required: true
       schema:
         type: integer
-        minimum: 1
-      description: Идентификатор зоны.
-
+      description: Идентификатор парковочной зоны.
+    UserId:
+      name: user_id
+      in: path
+      required: true
+      schema:
+        type: integer
+      description: Идентификатор пользователя.
+    PartnerId:
+      name: partner_id
+      in: path
+      required: true
+      schema:
+        type: integer
+      description: Идентификатор партнёра.
+    ObservationId:
+      name: observation_id
+      in: path
+      required: true
+      schema:
+        type: integer
+      description: Идентификатор наблюдения занятости.
+    ForecastId:
+      name: forecast_id
+      in: path
+      required: true
+      schema:
+        type: integer
+      description: Идентификатор прогноза.
+    RouteId:
+      name: route_id
+      in: path
+      required: true
+      schema:
+        type: integer
+      description: Идентификатор маршрута.
+    SourceId:
+      name: source_id
+      in: path
+      required: true
+      schema:
+        type: integer
+      description: Идентификатор источника данных.
   responses:
     BadRequest:
-      description: Невалидный JSON или неверные типы полей.
+      description: Bad Request
       content:
         application/json:
           schema:
-            $ref: "#/components/schemas/Error"
-    UnauthorizedError:
-      description: "Отсутствует или просрочен токен. Укажи `Authorization: Bearer <token>`."
+            $ref: '#/components/schemas/ErrorResponse'
+    Unauthorized:
+      description: Unauthorized
       content:
         application/json:
           schema:
-            $ref: "#/components/schemas/Error"
-    ForbiddenError:
-      description: У пользователя нет прав выполнять действие (например, создавать камеры). Проверь роли/права API-токена.
+            $ref: '#/components/schemas/ErrorResponse'
+    Forbidden:
+      description: Forbidden
       content:
         application/json:
           schema:
-            $ref: "#/components/schemas/Error"
-    NotFoundError:
-      description: Ресурс не найден.
+            $ref: '#/components/schemas/ErrorResponse'
+    NotFound:
+      description: Not Found
       content:
         application/json:
           schema:
-            $ref: "#/components/schemas/Error"
+            $ref: '#/components/schemas/ErrorResponse'
+    Conflict:
+      description: Conflict
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
     UnsupportedMediaType:
-      description: Неверный `Content-Type`. Используй `application/json`.
+      description: Unsupported Media Type
       content:
         application/json:
           schema:
-            $ref: "#/components/schemas/Error"
-          examples:
-            sample:
-              value:
-                error_description: "Unsupported Media Type: expected application/json"
-    InternalError:
-      description: Необработанная ошибка сервера.
+            $ref: '#/components/schemas/ErrorResponse'
+    ValidationError:
+      description: Unprocessable Entity
       content:
         application/json:
           schema:
-            $ref: "#/components/schemas/Error"
+            $ref: '#/components/schemas/ErrorResponse'
+    TooManyRequests:
+      description: Too Many Requests
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
     ServiceUnavailable:
-      description: Сервис временно недоступен/перезапускается.
+      description: Service Unavailable
       content:
         application/json:
           schema:
-            $ref: "#/components/schemas/Error"
-
+            $ref: '#/components/schemas/ErrorResponse'
+    InternalServerError:
+      description: Internal Server Error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    NoContent:
+      description: No Content
   schemas:
-    Error:
+    ErrorResponse:
       type: object
-      required:
-        - error_description
       properties:
         error_description:
           type: string
-          example: "Validation error: поле X обязательно"
-
-    Camera:
-      type: object
-      description: Модель Camera.
+          description: Описание ошибки
+          example: 'Validation error: field is required'
       required:
-        - camera_id
-        - title
-        - source
-        - image_width
-        - image_height
-        - latitude
-        - longitude
-        - created_at
-        - updated_at
+      - error_description
+      additionalProperties: false
+    GeoJsonPolygon:
+      type: object
+      description: GeoJSON Polygon. Координаты задаются как [longitude, latitude].
       properties:
-        camera_id:
-          type: integer
-          example: 1
-        title:
+        type:
           type: string
-          example: "Кронверкский просп., парковка напротив ИТМО"
-        source:
+          enum:
+          - Polygon
+          example: Polygon
+        coordinates:
+          type: array
+          items:
+            type: array
+            items:
+              type: array
+              items:
+                type: number
+                format: double
+      required:
+      - type
+      - coordinates
+      additionalProperties: false
+    ImagePoint:
+      type: array
+      minItems: 2
+      maxItems: 2
+      items:
+        type: integer
+        minimum: 0
+      description: Точка изображения [x, y].
+    ImagePolygon:
+      type: array
+      minItems: 4
+      maxItems: 4
+      items:
+        $ref: '#/components/schemas/ImagePoint'
+      description: Полигон зоны на изображении камеры из 4 вершин.
+    JsonObject:
+      type: object
+      nullable: true
+      additionalProperties: true
+    ConfidenceLevel:
+      type: string
+      enum:
+      - very_low
+      - low
+      - medium
+      - high
+      nullable: true
+    ZoneType:
+      type: string
+      enum:
+      - parallel
+      - standard
+    LocationType:
+      type: string
+      enum:
+      - street
+      - yard
+      - open_lot
+      - underground
+      - multilevel
+      nullable: true
+    AccessScope:
+      type: string
+      enum:
+      - none
+      - own
+      - assigned
+      - own_or_assigned
+      - partner_all
+      - global_all
+    PartnerRole:
+      type: string
+      enum:
+      - partner_owner
+      - partner_admin
+      - partner_manager
+      - partner_analyst
+      - partner_viewer
+    GlobalRole:
+      type: string
+      enum:
+      - user
+      - admin
+    RouteMode:
+      type: string
+      enum:
+      - find_parking
+      - route_to_destination
+    RouteStatus:
+      type: string
+      enum:
+      - active
+      - completed
+      - cancelled
+      - replaced
+    RoutingProvider:
+      type: string
+      enum:
+      - yandex
+      - internal
+      - external
+    DataSourceType:
+      type: string
+      enum:
+      - camera_stream
+      - partner_api
+      - parking_sensor
+      - payment_feed
+      - navigator_feed
+      - carsharing_feed
+      - manual_import
+      - other
+    DataSourceEntityType:
+      type: string
+      enum:
+      - camera
+      - partner_api_source
+      - parking_sensor_source
+      - payment_source
+      - navigator_source
+      - carsharing_source
+      - manual_import_source
+    DataSourceStatus:
+      type: string
+      enum:
+      - active
+      - paused
+      - error
+      - deleted
+      - unknown
+    ObservationSourceType:
+      type: string
+      enum:
+      - camera_cv
+      - manual
+      - partner_api
+      - parking_sensor
+      - payment_data
+      - navigator_data
+      - carsharing_data
+      - model_adjustment
+    ForecastModelType:
+      type: string
+      enum:
+      - ml_model
+      - rule_based
+      - hybrid
+      - manual
+      - external_partner_model
+    CameraStatus:
+      type: string
+      enum:
+      - online
+      - offline
+      - degraded
+      - unknown
+    ProcessingStatus:
+      type: string
+      enum:
+      - idle
+      - running
+      - warning
+      - error
+      - unknown
+    AuthUserSummary:
+      type: object
+      properties:
+        user_id:
+          type: integer
+        email:
           type: string
-          description: URL с видеопотоком камеры (например, `.m3u8`) или строка подключения (`rtsp://...`).
-          example: "https://... .m3u8"
-        image_width:
-          type: integer
-          minimum: 1
-          example: 1920
-        image_height:
-          type: integer
-          minimum: 1
-          example: 1080
-        calib:
-          type: object
+          format: email
+        full_name:
+          type: string
           nullable: true
-          description: Вложенный json-объект с информацией о калибровке и вытягивании изображения с камеры. Может быть `null`.
-          additionalProperties: true
-        latitude:
-          type: number
-          format: double
-          minimum: -90
-          maximum: 90
-          example: 59.955976
-        longitude:
-          type: number
-          format: double
-          minimum: -180
-          maximum: 180
-          example: 30.309426
+        global_roles:
+          type: array
+          items:
+            $ref: '#/components/schemas/GlobalRole'
+      required:
+      - user_id
+      - email
+      - full_name
+      - global_roles
+      additionalProperties: false
+    AuthResponse:
+      type: object
+      properties:
+        access_token:
+          type: string
+        token_type:
+          type: string
+          enum:
+          - Bearer
+        expires_in:
+          type: integer
+          minimum: 0
+        user:
+          $ref: '#/components/schemas/AuthUserSummary'
+      required:
+      - access_token
+      - token_type
+      - expires_in
+      - user
+      additionalProperties: false
+    RegisterRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 1
+        full_name:
+          type: string
+          nullable: true
+          maxLength: 200
+        phone:
+          type: string
+          nullable: true
+      required:
+      - email
+      - password
+      additionalProperties: false
+    LoginRequest:
+      type: object
+      properties:
+        login:
+          type: string
+        password:
+          type: string
+          minLength: 1
+      required:
+      - login
+      - password
+      additionalProperties: false
+    PartnerMembership:
+      type: object
+      properties:
+        partner_id:
+          type: integer
+        user_id:
+          type: integer
+          nullable: true
+          description: Может отсутствовать в /auth/me.
+        role:
+          $ref: '#/components/schemas/PartnerRole'
+        permissions:
+          type: array
+          items:
+            type: string
+        read_scope:
+          $ref: '#/components/schemas/AccessScope'
+        write_scope:
+          $ref: '#/components/schemas/AccessScope'
+        delete_scope:
+          $ref: '#/components/schemas/AccessScope'
+        is_active:
+          type: boolean
         created_at:
           type: string
           format: date-time
-          example: "2025-10-08T08:00:00Z"
+          nullable: true
         updated_at:
           type: string
           format: date-time
-          example: "2025-10-08T08:10:00Z"
-
-    CreateCameraRequest:
-      type: object
-      description: |
-        **Request body (required)**
-        - **title** (`string`, 1..200)
-        - **source** (`string`) — URL с видеопотоком или строка подключения.
-        - **image_width** (`integer`) — ширина кадра в пикселях.
-        - **image_height** (`integer`) — высота кадра в пикселях.
-        - **latitude** (`float`, `-90..90`)
-        - **longitude** (`float`, `-180..180`)
-        - **calib** (`json`) — дополнительный объект с калибровкой, может быть `null`.
-      required:
-        - title
-        - source
-        - image_width
-        - image_height
-        - latitude
-        - longitude
-      properties:
-        title:
-          type: string
-          minLength: 1
-          maxLength: 200
-        source:
-          type: string
-        image_width:
-          type: integer
-          minimum: 1
-        image_height:
-          type: integer
-          minimum: 1
-        calib:
-          type: object
           nullable: true
-          additionalProperties: true
-        latitude:
-          type: number
-          format: double
-          minimum: -90
-          maximum: 90
-        longitude:
-          type: number
-          format: double
-          minimum: -180
-          maximum: 180
-
-    UpdateCameraRequest:
-      type: object
+      required:
+      - partner_id
+      - role
+      - permissions
+      - read_scope
+      - write_scope
+      - delete_scope
       additionalProperties: false
-      description: Любые из полей ниже; минимум одно поле.
+    AuthMeResponse:
+      type: object
       properties:
-        title:
+        user_id:
+          type: integer
+        email:
+          type: string
+          format: email
+        full_name:
+          type: string
+          nullable: true
+        global_roles:
+          type: array
+          items:
+            $ref: '#/components/schemas/GlobalRole'
+        permissions:
+          type: array
+          items:
+            type: string
+        partner_memberships:
+          type: array
+          items:
+            $ref: '#/components/schemas/PartnerMembership'
+      required:
+      - user_id
+      - email
+      - full_name
+      - global_roles
+      - permissions
+      - partner_memberships
+      additionalProperties: false
+    User:
+      type: object
+      properties:
+        user_id:
+          type: integer
+        email:
+          type: string
+          format: email
+        full_name:
+          type: string
+          nullable: true
+        phone:
+          type: string
+          nullable: true
+        global_roles:
+          type: array
+          items:
+            $ref: '#/components/schemas/GlobalRole'
+        is_active:
+          type: boolean
+        is_email_verified:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+      required:
+      - user_id
+      - email
+      - full_name
+      - phone
+      - global_roles
+      - is_active
+      - is_email_verified
+      - created_at
+      - updated_at
+      additionalProperties: false
+    UserProfileMembership:
+      type: object
+      properties:
+        partner_id:
+          type: integer
+        role:
+          $ref: '#/components/schemas/PartnerRole'
+        is_active:
+          type: boolean
+        read_scope:
+          $ref: '#/components/schemas/AccessScope'
+        write_scope:
+          $ref: '#/components/schemas/AccessScope'
+        delete_scope:
+          $ref: '#/components/schemas/AccessScope'
+      required:
+      - partner_id
+      - role
+      - is_active
+      - read_scope
+      - write_scope
+      - delete_scope
+      additionalProperties: false
+    UserProfile:
+      type: object
+      properties:
+        user:
+          $ref: '#/components/schemas/User'
+        partner_memberships:
+          type: array
+          items:
+            $ref: '#/components/schemas/UserProfileMembership'
+      required:
+      - user
+      - partner_memberships
+      additionalProperties: false
+    UpdateMeRequest:
+      type: object
+      properties:
+        full_name:
           type: string
           minLength: 1
           maxLength: 200
-        source:
+        phone:
           type: string
-        image_width:
-          type: integer
-          minimum: 1
-        image_height:
-          type: integer
-          minimum: 1
-        calib:
-          type: object
           nullable: true
-          additionalProperties: true
-        latitude:
-          type: number
-          format: double
-          minimum: -90
-          maximum: 90
-        longitude:
-          type: number
-          format: double
-          minimum: -180
-          maximum: 180
-
-    CamerasNextResponse:
+      additionalProperties: false
+    ChangePasswordRequest:
       type: object
-      description: Ответ эндпоинта `/cameras/next`.
+      properties:
+        current_password:
+          type: string
+        new_password:
+          type: string
       required:
-        - camera_id
-        - source
-        - image_width
-        - image_height
+      - current_password
+      - new_password
+      additionalProperties: false
+    CreateUserRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+        full_name:
+          type: string
+          nullable: true
+        phone:
+          type: string
+          nullable: true
+        global_roles:
+          type: array
+          items:
+            $ref: '#/components/schemas/GlobalRole'
+        is_active:
+          type: boolean
+      required:
+      - email
+      - password
+      additionalProperties: false
+    UpdateUserRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+        full_name:
+          type: string
+          nullable: true
+        phone:
+          type: string
+          nullable: true
+        global_roles:
+          type: array
+          items:
+            $ref: '#/components/schemas/GlobalRole'
+        is_active:
+          type: boolean
+        is_email_verified:
+          type: boolean
+      additionalProperties: false
+    UserIdResponse:
+      type: object
+      properties:
+        user_id:
+          type: integer
+      required:
+      - user_id
+      additionalProperties: false
+    UserListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/User'
+        total:
+          type: integer
+          minimum: 0
+          description: Общее количество элементов по фильтру
+        top:
+          type: integer
+          minimum: 0
+          description: Использованный лимит
+        offset:
+          type: integer
+          minimum: 0
+          description: Использованное смещение
+      required:
+      - items
+      - total
+      - top
+      - offset
+      additionalProperties: false
+    Partner:
+      type: object
+      properties:
+        partner_id:
+          type: integer
+        name:
+          type: string
+        slug:
+          type: string
+        contact_email:
+          type: string
+          format: email
+          nullable: true
+        contact_phone:
+          type: string
+          nullable: true
+        is_active:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+      required:
+      - partner_id
+      - name
+      - slug
+      - contact_email
+      - contact_phone
+      - is_active
+      - created_at
+      - updated_at
+      additionalProperties: false
+    PartnerCreateRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        slug:
+          type: string
+        contact_email:
+          type: string
+          format: email
+        contact_phone:
+          type: string
+      required:
+      - name
+      - slug
+      additionalProperties: false
+    PartnerUpdateRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        slug:
+          type: string
+        contact_email:
+          type: string
+          format: email
+          nullable: true
+        contact_phone:
+          type: string
+          nullable: true
+        is_active:
+          type: boolean
+      additionalProperties: false
+    PartnerIdResponse:
+      type: object
+      properties:
+        partner_id:
+          type: integer
+      required:
+      - partner_id
+      additionalProperties: false
+    PartnerListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Partner'
+        total:
+          type: integer
+          minimum: 0
+          description: Общее количество элементов по фильтру
+        top:
+          type: integer
+          minimum: 0
+          description: Использованный лимит
+        offset:
+          type: integer
+          minimum: 0
+          description: Использованное смещение
+      required:
+      - items
+      - total
+      - top
+      - offset
+      additionalProperties: false
+    PartnerMemberCreateRequest:
+      type: object
+      properties:
+        user_id:
+          type: integer
+        role:
+          $ref: '#/components/schemas/PartnerRole'
+        permissions:
+          type: array
+          items:
+            type: string
+        read_scope:
+          $ref: '#/components/schemas/AccessScope'
+        write_scope:
+          $ref: '#/components/schemas/AccessScope'
+        delete_scope:
+          $ref: '#/components/schemas/AccessScope'
+      required:
+      - user_id
+      - role
+      - permissions
+      - read_scope
+      - write_scope
+      - delete_scope
+      additionalProperties: false
+    PartnerMemberUpdateRequest:
+      type: object
+      properties:
+        role:
+          $ref: '#/components/schemas/PartnerRole'
+        permissions:
+          type: array
+          items:
+            type: string
+        read_scope:
+          $ref: '#/components/schemas/AccessScope'
+        write_scope:
+          $ref: '#/components/schemas/AccessScope'
+        delete_scope:
+          $ref: '#/components/schemas/AccessScope'
+        is_active:
+          type: boolean
+      additionalProperties: false
+    PartnerMembershipListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/PartnerMembership'
+        total:
+          type: integer
+          minimum: 0
+          description: Общее количество элементов по фильтру
+        top:
+          type: integer
+          minimum: 0
+          description: Использованный лимит
+        offset:
+          type: integer
+          minimum: 0
+          description: Использованное смещение
+      required:
+      - items
+      - total
+      - top
+      - offset
+      additionalProperties: false
+    Camera:
+      type: object
       properties:
         camera_id:
           type: integer
-          example: 1
+        title:
+          type: string
         source:
           type: string
-          example: "https://<path>.m3u8"
         image_width:
           type: integer
           minimum: 1
-          example: 1920
         image_height:
           type: integer
           minimum: 1
-          example: 1080
         calib:
-          type: object
-          nullable: true
-          description: Вложенный json-объект с информацией о калибровке и вытягивании изображения с камеры. Может быть `null`.
-          additionalProperties: true
-          example:
-            image_width: 1920
-            image_height: 1080
-            K:
-              - [1739.237279181759, 0.0, 947.5335576199107]
-              - [0.0, 2244.705015334057, 564.6946579168148]
-              - [0.0, 0.0, 1.0]
-            D: [-0.37, 0.05, 0.03, 0.01]
-            balance: 0.0
-            model: "opencv_fisheye_k1k2k3k4"
-
-    ZonePoint:
-      type: object
-      description: Опорная точка зоны (карта + пиксели изображения), по часовой стрелке.
-      required:
-        - latitude
-        - longitude
-        - x
-        - y
-      properties:
+          $ref: '#/components/schemas/JsonObject'
         latitude:
           type: number
           format: double
@@ -932,117 +2713,320 @@ components:
           format: double
           minimum: -180
           maximum: 180
-        x:
+        partner_id:
           type: integer
-          minimum: 0
-        y:
+          nullable: true
+        created_by_user_id:
           type: integer
-          minimum: 0
-
+          nullable: true
+        is_active:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+      required:
+      - camera_id
+      - title
+      - source
+      - image_width
+      - image_height
+      - calib
+      - latitude
+      - longitude
+      - created_at
+      - updated_at
+      additionalProperties: false
+    CameraMapItem:
+      type: object
+      properties:
+        camera_id:
+          type: integer
+        title:
+          type: string
+        latitude:
+          type: number
+          format: double
+        longitude:
+          type: number
+          format: double
+        partner_id:
+          type: integer
+          nullable: true
+        is_active:
+          type: boolean
+      required:
+      - camera_id
+      - title
+      - latitude
+      - longitude
+      - partner_id
+      - is_active
+      additionalProperties: false
+    CameraCreateRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+        source:
+          type: string
+        image_width:
+          type: integer
+          minimum: 1
+        image_height:
+          type: integer
+          minimum: 1
+        calib:
+          $ref: '#/components/schemas/JsonObject'
+        latitude:
+          type: number
+          format: double
+          minimum: -90
+          maximum: 90
+        longitude:
+          type: number
+          format: double
+          minimum: -180
+          maximum: 180
+        partner_id:
+          type: integer
+      required:
+      - title
+      - source
+      - image_width
+      - image_height
+      - calib
+      - latitude
+      - longitude
+      additionalProperties: false
+    CameraUpdateRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+        source:
+          type: string
+        image_width:
+          type: integer
+          minimum: 1
+        image_height:
+          type: integer
+          minimum: 1
+        calib:
+          $ref: '#/components/schemas/JsonObject'
+        latitude:
+          type: number
+          format: double
+          minimum: -90
+          maximum: 90
+        longitude:
+          type: number
+          format: double
+          minimum: -180
+          maximum: 180
+        partner_id:
+          type: integer
+        is_active:
+          type: boolean
+      additionalProperties: false
+    CameraIdResponse:
+      type: object
+      properties:
+        camera_id:
+          type: integer
+      required:
+      - camera_id
+      additionalProperties: false
+    CameraNext:
+      type: object
+      properties:
+        camera_id:
+          type: integer
+        source:
+          type: string
+        image_width:
+          type: integer
+        image_height:
+          type: integer
+        calib:
+          $ref: '#/components/schemas/JsonObject'
+        partner_id:
+          type: integer
+          nullable: true
+        is_active:
+          type: boolean
+      required:
+      - camera_id
+      - source
+      - image_width
+      - image_height
+      - calib
+      additionalProperties: false
     Zone:
       type: object
-      description: Объект зоны в ответах API.
-      required:
-        - zone_id
-        - zone_type
-        - capacity
-        - pay
-        - points
-        - created_at
-        - updated_at
       properties:
         zone_id:
           type: integer
-          example: 1
         camera_id:
           type: integer
-          description: ID камеры, к которой относится зона. Может отсутствовать в ответе при запросе без авторизации.
-          example: 1
         zone_type:
-          type: string
-          enum:
-            - parallel
-            - standard
-          example: parallel
+          $ref: '#/components/schemas/ZoneType'
         capacity:
           type: integer
           minimum: 0
-          example: 7
         occupied:
           type: integer
           minimum: 0
-          example: 5
+        free_count:
+          type: integer
+          minimum: 0
         confidence:
           type: number
           format: double
           minimum: 0
           maximum: 1
-          example: 0.76
+        confidence_level:
+          $ref: '#/components/schemas/ConfidenceLevel'
         pay:
           type: integer
           minimum: 0
-          example: 0
-        points:
-          type: array
-          minItems: 4
-          maxItems: 4
-          items:
-            $ref: "#/components/schemas/ZonePoint"
+        geometry:
+          $ref: '#/components/schemas/GeoJsonPolygon'
+        image_polygon:
+          $ref: '#/components/schemas/ImagePolygon'
+        partner_id:
+          type: integer
+          nullable: true
+        created_by_user_id:
+          type: integer
+          nullable: true
+        is_active:
+          type: boolean
+        location_type:
+          $ref: '#/components/schemas/LocationType'
+        is_private:
+          type: boolean
+          nullable: true
+        is_accessible:
+          type: boolean
+          nullable: true
+        occupancy_updated_at:
+          type: string
+          format: date-time
+          nullable: true
         created_at:
           type: string
           format: date-time
-          example: "2025-10-08T08:00:00Z"
         updated_at:
           type: string
           format: date-time
-          example: "2025-10-08T08:10:00Z"
-
-    CreateZoneRequest:
-      type: object
-      description: |
-        Ровно 4 точки. Координаты широты/долготы в допустимых диапазонах.
-        `capacity >= 0`, `pay >= 0`. Для `points` порядок по часовой стрелке.
       required:
-        - camera_id
-        - zone_type
-        - capacity
-        - pay
-        - points
+      - zone_id
+      - camera_id
+      - zone_type
+      - capacity
+      - occupied
+      - free_count
+      - confidence
+      - pay
+      - geometry
+      - image_polygon
+      - created_at
+      - updated_at
+      additionalProperties: false
+    ZoneMapItem:
+      type: object
+      properties:
+        zone_id:
+          type: integer
+        zone_type:
+          $ref: '#/components/schemas/ZoneType'
+        capacity:
+          type: integer
+        occupied:
+          type: integer
+        free_count:
+          type: integer
+        confidence:
+          type: number
+          format: double
+        confidence_level:
+          $ref: '#/components/schemas/ConfidenceLevel'
+        pay:
+          type: integer
+        geometry:
+          $ref: '#/components/schemas/GeoJsonPolygon'
+        location_type:
+          $ref: '#/components/schemas/LocationType'
+        is_private:
+          type: boolean
+          nullable: true
+        is_accessible:
+          type: boolean
+          nullable: true
+        occupancy_updated_at:
+          type: string
+          format: date-time
+          nullable: true
+        is_active:
+          type: boolean
+      required:
+      - zone_id
+      - zone_type
+      - capacity
+      - occupied
+      - free_count
+      - confidence
+      - pay
+      - geometry
+      - is_active
+      additionalProperties: false
+    ZoneCreateRequest:
+      type: object
       properties:
         camera_id:
           type: integer
-          minimum: 1
         zone_type:
-          type: string
-          enum:
-            - parallel
-            - standard
+          $ref: '#/components/schemas/ZoneType'
         capacity:
           type: integer
           minimum: 0
         pay:
           type: integer
           minimum: 0
-        points:
-          type: array
-          minItems: 4
-          maxItems: 4
-          items:
-            $ref: "#/components/schemas/ZonePoint"
-
-    UpdateZoneRequest:
-      type: object
+        geometry:
+          $ref: '#/components/schemas/GeoJsonPolygon'
+        image_polygon:
+          $ref: '#/components/schemas/ImagePolygon'
+        location_type:
+          $ref: '#/components/schemas/LocationType'
+        is_private:
+          type: boolean
+          nullable: true
+        is_accessible:
+          type: boolean
+          nullable: true
+      required:
+      - camera_id
+      - zone_type
+      - capacity
+      - pay
+      - geometry
+      - image_polygon
       additionalProperties: false
-      description: Любое подмножество полей; минимум одно.
+    ZoneUpdateRequest:
+      type: object
       properties:
         camera_id:
           type: integer
-          minimum: 1
         zone_type:
-          type: string
-          enum:
-            - parallel
-            - standard
+          $ref: '#/components/schemas/ZoneType'
         capacity:
           type: integer
           minimum: 0
@@ -1057,9 +3041,1021 @@ components:
           format: double
           minimum: 0
           maximum: 1
-        points:
+        geometry:
+          $ref: '#/components/schemas/GeoJsonPolygon'
+        image_polygon:
+          $ref: '#/components/schemas/ImagePolygon'
+        location_type:
+          $ref: '#/components/schemas/LocationType'
+        is_private:
+          type: boolean
+          nullable: true
+        is_accessible:
+          type: boolean
+          nullable: true
+        is_active:
+          type: boolean
+      additionalProperties: false
+    ZoneIdResponse:
+      type: object
+      properties:
+        zone_id:
+          type: integer
+      required:
+      - zone_id
+      additionalProperties: false
+    ZoneListResponse:
+      type: object
+      properties:
+        items:
           type: array
-          minItems: 4
-          maxItems: 4
           items:
-            $ref: "#/components/schemas/ZonePoint"
+            $ref: '#/components/schemas/Zone'
+        total:
+          type: integer
+          minimum: 0
+          description: Общее количество элементов по фильтру
+        top:
+          type: integer
+          minimum: 0
+          description: Использованный лимит
+        offset:
+          type: integer
+          minimum: 0
+          description: Использованное смещение
+      required:
+      - items
+      - total
+      - top
+      - offset
+      additionalProperties: false
+    OccupancyObservation:
+      type: object
+      properties:
+        observation_id:
+          type: integer
+        zone_id:
+          type: integer
+        camera_id:
+          type: integer
+          nullable: true
+        partner_id:
+          type: integer
+          nullable: true
+        source_type:
+          $ref: '#/components/schemas/ObservationSourceType'
+        source_ref:
+          type: string
+          nullable: true
+        capacity:
+          type: integer
+          minimum: 0
+        occupied:
+          type: integer
+          minimum: 0
+        free_count:
+          type: integer
+          minimum: 0
+        confidence:
+          type: number
+          format: double
+          minimum: 0
+          maximum: 1
+        confidence_level:
+          $ref: '#/components/schemas/ConfidenceLevel'
+        observed_at:
+          type: string
+          format: date-time
+        ingested_at:
+          type: string
+          format: date-time
+        metadata:
+          $ref: '#/components/schemas/JsonObject'
+        created_by_user_id:
+          type: integer
+          nullable: true
+      required:
+      - observation_id
+      - zone_id
+      - source_type
+      - capacity
+      - occupied
+      - free_count
+      - confidence
+      - observed_at
+      - ingested_at
+      additionalProperties: false
+    OccupancySeriesPoint:
+      type: object
+      properties:
+        observed_at:
+          type: string
+          format: date-time
+        occupied:
+          type: integer
+        free_count:
+          type: integer
+        capacity:
+          type: integer
+        confidence:
+          type: number
+          format: double
+        confidence_level:
+          $ref: '#/components/schemas/ConfidenceLevel'
+        source_type:
+          $ref: '#/components/schemas/ObservationSourceType'
+      required:
+      - observed_at
+      - occupied
+      - free_count
+      - capacity
+      - confidence
+      - source_type
+      additionalProperties: false
+    OccupancyMapItem:
+      type: object
+      properties:
+        zone_id:
+          type: integer
+        camera_id:
+          type: integer
+          nullable: true
+        capacity:
+          type: integer
+        occupied:
+          type: integer
+        free_count:
+          type: integer
+        confidence:
+          type: number
+          format: double
+        confidence_level:
+          $ref: '#/components/schemas/ConfidenceLevel'
+        observed_at:
+          type: string
+          format: date-time
+        geometry:
+          $ref: '#/components/schemas/GeoJsonPolygon'
+        pay:
+          type: integer
+        zone_type:
+          $ref: '#/components/schemas/ZoneType'
+        location_type:
+          $ref: '#/components/schemas/LocationType'
+        is_accessible:
+          type: boolean
+          nullable: true
+        is_active:
+          type: boolean
+      required:
+      - zone_id
+      - capacity
+      - occupied
+      - free_count
+      - confidence
+      - observed_at
+      - geometry
+      - pay
+      - zone_type
+      - is_active
+      additionalProperties: false
+    OccupancyCreateRequest:
+      type: object
+      properties:
+        zone_id:
+          type: integer
+        source_type:
+          $ref: '#/components/schemas/ObservationSourceType'
+        observed_at:
+          type: string
+          format: date-time
+        occupied:
+          type: integer
+          minimum: 0
+        confidence:
+          type: number
+          format: double
+          minimum: 0
+          maximum: 1
+        source_ref:
+          type: string
+          nullable: true
+        capacity:
+          type: integer
+          minimum: 0
+        metadata:
+          $ref: '#/components/schemas/JsonObject'
+      required:
+      - zone_id
+      - source_type
+      - observed_at
+      - occupied
+      - confidence
+      additionalProperties: false
+    OccupancyUpdateRequest:
+      type: object
+      properties:
+        observed_at:
+          type: string
+          format: date-time
+        occupied:
+          type: integer
+          minimum: 0
+        confidence:
+          type: number
+          format: double
+          minimum: 0
+          maximum: 1
+        capacity:
+          type: integer
+          minimum: 0
+        source_ref:
+          type: string
+          nullable: true
+        metadata:
+          $ref: '#/components/schemas/JsonObject'
+      additionalProperties: false
+    ObservationIdResponse:
+      type: object
+      properties:
+        observation_id:
+          type: integer
+      required:
+      - observation_id
+      additionalProperties: false
+    ForecastPoint:
+      type: object
+      properties:
+        forecast_id:
+          type: integer
+        zone_id:
+          type: integer
+        camera_id:
+          type: integer
+          nullable: true
+        partner_id:
+          type: integer
+          nullable: true
+        model_type:
+          $ref: '#/components/schemas/ForecastModelType'
+        model_version:
+          type: string
+          nullable: true
+        generated_at:
+          type: string
+          format: date-time
+        predicted_for:
+          type: string
+          format: date-time
+        capacity:
+          type: integer
+          minimum: 0
+        predicted_occupied:
+          type: integer
+          minimum: 0
+        predicted_free_count:
+          type: integer
+          minimum: 0
+        probability_free_space:
+          type: number
+          format: double
+          minimum: 0
+          maximum: 1
+        confidence:
+          type: number
+          format: double
+          minimum: 0
+          maximum: 1
+        confidence_level:
+          $ref: '#/components/schemas/ConfidenceLevel'
+        metadata:
+          $ref: '#/components/schemas/JsonObject'
+        created_by_user_id:
+          type: integer
+          nullable: true
+      required:
+      - forecast_id
+      - zone_id
+      - model_type
+      - generated_at
+      - predicted_for
+      - capacity
+      - predicted_occupied
+      - predicted_free_count
+      - probability_free_space
+      - confidence
+      additionalProperties: false
+    ForecastSeriesPoint:
+      type: object
+      properties:
+        predicted_for:
+          type: string
+          format: date-time
+        predicted_occupied:
+          type: integer
+        predicted_free_count:
+          type: integer
+        capacity:
+          type: integer
+        probability_free_space:
+          type: number
+          format: double
+        confidence:
+          type: number
+          format: double
+        confidence_level:
+          $ref: '#/components/schemas/ConfidenceLevel'
+        model_type:
+          $ref: '#/components/schemas/ForecastModelType'
+        generated_at:
+          type: string
+          format: date-time
+      required:
+      - predicted_for
+      - predicted_occupied
+      - predicted_free_count
+      - capacity
+      - probability_free_space
+      - confidence
+      - model_type
+      - generated_at
+      additionalProperties: false
+    ForecastMapItem:
+      type: object
+      properties:
+        zone_id:
+          type: integer
+        camera_id:
+          type: integer
+          nullable: true
+        capacity:
+          type: integer
+        predicted_occupied:
+          type: integer
+        predicted_free_count:
+          type: integer
+        probability_free_space:
+          type: number
+          format: double
+        confidence:
+          type: number
+          format: double
+        confidence_level:
+          $ref: '#/components/schemas/ConfidenceLevel'
+        predicted_for:
+          type: string
+          format: date-time
+        generated_at:
+          type: string
+          format: date-time
+        geometry:
+          $ref: '#/components/schemas/GeoJsonPolygon'
+        pay:
+          type: integer
+        zone_type:
+          $ref: '#/components/schemas/ZoneType'
+        location_type:
+          $ref: '#/components/schemas/LocationType'
+        is_accessible:
+          type: boolean
+          nullable: true
+        is_active:
+          type: boolean
+      required:
+      - zone_id
+      - capacity
+      - predicted_occupied
+      - predicted_free_count
+      - probability_free_space
+      - confidence
+      - predicted_for
+      - generated_at
+      - geometry
+      - pay
+      - zone_type
+      - is_active
+      additionalProperties: false
+    ForecastCreateRequest:
+      type: object
+      properties:
+        zone_id:
+          type: integer
+        model_type:
+          $ref: '#/components/schemas/ForecastModelType'
+        generated_at:
+          type: string
+          format: date-time
+        predicted_for:
+          type: string
+          format: date-time
+        predicted_occupied:
+          type: integer
+          minimum: 0
+        probability_free_space:
+          type: number
+          format: double
+          minimum: 0
+          maximum: 1
+        confidence:
+          type: number
+          format: double
+          minimum: 0
+          maximum: 1
+        capacity:
+          type: integer
+          minimum: 0
+        model_version:
+          type: string
+          nullable: true
+        metadata:
+          $ref: '#/components/schemas/JsonObject'
+      required:
+      - zone_id
+      - model_type
+      - generated_at
+      - predicted_for
+      - predicted_occupied
+      - probability_free_space
+      - confidence
+      additionalProperties: false
+    ForecastUpdateRequest:
+      type: object
+      properties:
+        model_version:
+          type: string
+          nullable: true
+        generated_at:
+          type: string
+          format: date-time
+        predicted_for:
+          type: string
+          format: date-time
+        predicted_occupied:
+          type: integer
+          minimum: 0
+        probability_free_space:
+          type: number
+          format: double
+          minimum: 0
+          maximum: 1
+        confidence:
+          type: number
+          format: double
+          minimum: 0
+          maximum: 1
+        capacity:
+          type: integer
+          minimum: 0
+        metadata:
+          $ref: '#/components/schemas/JsonObject'
+      additionalProperties: false
+    ForecastIdResponse:
+      type: object
+      properties:
+        forecast_id:
+          type: integer
+      required:
+      - forecast_id
+      additionalProperties: false
+    MapPoint:
+      type: object
+      properties:
+        latitude:
+          type: number
+          format: double
+          minimum: -90
+          maximum: 90
+        longitude:
+          type: number
+          format: double
+          minimum: -180
+          maximum: 180
+      required:
+      - latitude
+      - longitude
+      additionalProperties: false
+    RouteCandidate:
+      type: object
+      properties:
+        zone_id:
+          type: integer
+        camera_id:
+          type: integer
+          nullable: true
+        geometry:
+          $ref: '#/components/schemas/GeoJsonPolygon'
+        zone_type:
+          $ref: '#/components/schemas/ZoneType'
+        location_type:
+          $ref: '#/components/schemas/LocationType'
+        is_accessible:
+          type: boolean
+          nullable: true
+        pay:
+          type: integer
+        capacity:
+          type: integer
+        current_occupied:
+          type: integer
+        current_free_count:
+          type: integer
+        current_confidence:
+          type: number
+          format: double
+        predicted_for_arrival:
+          type: string
+          format: date-time
+          nullable: true
+        predicted_occupied:
+          type: integer
+          nullable: true
+        predicted_free_count:
+          type: integer
+          nullable: true
+        probability_free_space:
+          type: number
+          format: double
+          nullable: true
+        forecast_confidence:
+          type: number
+          format: double
+          nullable: true
+        distance_from_origin_meters:
+          type: integer
+        duration_from_origin_seconds:
+          type: integer
+        distance_to_destination_meters:
+          type: integer
+          nullable: true
+        duration_to_destination_seconds:
+          type: integer
+          nullable: true
+        score:
+          type: number
+          format: double
+        rank:
+          type: integer
+      required:
+      - zone_id
+      - geometry
+      - zone_type
+      - pay
+      - capacity
+      - current_occupied
+      - current_free_count
+      - current_confidence
+      - distance_from_origin_meters
+      - duration_from_origin_seconds
+      - score
+      - rank
+      additionalProperties: false
+    Route:
+      type: object
+      properties:
+        route_id:
+          type: integer
+        user_id:
+          type: integer
+        mode:
+          $ref: '#/components/schemas/RouteMode'
+        provider:
+          $ref: '#/components/schemas/RoutingProvider'
+        origin:
+          $ref: '#/components/schemas/MapPoint'
+        destination:
+          $ref: '#/components/schemas/MapPoint'
+        selected_zone_id:
+          type: integer
+        selected_candidate:
+          $ref: '#/components/schemas/RouteCandidate'
+        eta_seconds:
+          type: integer
+        arrival_time:
+          type: string
+          format: date-time
+        polyline:
+          type: string
+          nullable: true
+        deeplink_url:
+          type: string
+          nullable: true
+        status:
+          $ref: '#/components/schemas/RouteStatus'
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+      required:
+      - route_id
+      - user_id
+      - mode
+      - provider
+      - origin
+      - selected_zone_id
+      - selected_candidate
+      - eta_seconds
+      - arrival_time
+      - status
+      - created_at
+      - updated_at
+      additionalProperties: false
+    RouteSearchRequest:
+      type: object
+      properties:
+        mode: &id012
+          $ref: '#/components/schemas/RouteMode'
+        origin: &id013
+          $ref: '#/components/schemas/MapPoint'
+        destination: &id014
+          $ref: '#/components/schemas/MapPoint'
+        max_pay: &id015
+          type: integer
+          minimum: 0
+        min_free_count: &id016
+          type: integer
+          minimum: 0
+        min_confidence: &id017
+          type: number
+          format: double
+          minimum: 0
+          maximum: 1
+        max_distance_to_destination_meters: &id018
+          type: integer
+          minimum: 0
+        max_duration_from_origin_seconds: &id019
+          type: integer
+          minimum: 0
+        include_accessible: &id020
+          type: boolean
+        limit: &id021
+          type: integer
+          minimum: 1
+          maximum: 50
+        use_forecast: &id022
+          type: boolean
+        provider: &id023
+          $ref: '#/components/schemas/RoutingProvider'
+      required:
+      - mode
+      - origin
+      additionalProperties: false
+    RouteCreateRequest:
+      type: object
+      properties:
+        mode: *id012
+        origin: *id013
+        destination: *id014
+        max_pay: *id015
+        min_free_count: *id016
+        min_confidence: *id017
+        max_distance_to_destination_meters: *id018
+        max_duration_from_origin_seconds: *id019
+        include_accessible: *id020
+        limit: *id021
+        use_forecast: *id022
+        provider: *id023
+        selected_zone_id:
+          type: integer
+      required:
+      - mode
+      - origin
+      additionalProperties: false
+    RouteSearchResponse:
+      type: object
+      properties:
+        mode:
+          $ref: '#/components/schemas/RouteMode'
+        provider:
+          $ref: '#/components/schemas/RoutingProvider'
+        generated_at:
+          type: string
+          format: date-time
+        candidates:
+          type: array
+          items:
+            $ref: '#/components/schemas/RouteCandidate'
+        selected_zone_id:
+          type: integer
+          nullable: true
+        total_candidates:
+          type: integer
+      required:
+      - mode
+      - provider
+      - generated_at
+      - candidates
+      - selected_zone_id
+      - total_candidates
+      additionalProperties: false
+    RouteUpdateRequest:
+      type: object
+      properties:
+        status:
+          $ref: '#/components/schemas/RouteStatus'
+        selected_zone_id:
+          type: integer
+        provider:
+          $ref: '#/components/schemas/RoutingProvider'
+      additionalProperties: false
+    RouteListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Route'
+        total:
+          type: integer
+          minimum: 0
+          description: Общее количество элементов по фильтру
+        top:
+          type: integer
+          minimum: 0
+          description: Использованный лимит
+        offset:
+          type: integer
+          minimum: 0
+          description: Использованное смещение
+      required:
+      - items
+      - total
+      - top
+      - offset
+      additionalProperties: false
+    DataSource:
+      type: object
+      properties:
+        source_id:
+          type: integer
+        partner_id:
+          type: integer
+          nullable: true
+        created_by_user_id:
+          type: integer
+          nullable: true
+        source_type:
+          $ref: '#/components/schemas/DataSourceType'
+        entity_type:
+          $ref: '#/components/schemas/DataSourceEntityType'
+        entity_id:
+          type: integer
+        title:
+          type: string
+        status:
+          $ref: '#/components/schemas/DataSourceStatus'
+        last_data_at:
+          type: string
+          format: date-time
+          nullable: true
+        last_error:
+          type: string
+          nullable: true
+        is_active:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+      required:
+      - source_id
+      - source_type
+      - entity_type
+      - entity_id
+      - title
+      - status
+      - is_active
+      - created_at
+      - updated_at
+      additionalProperties: false
+    DataSourceListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/DataSource'
+        total:
+          type: integer
+          minimum: 0
+          description: Общее количество элементов по фильтру
+        top:
+          type: integer
+          minimum: 0
+          description: Использованный лимит
+        offset:
+          type: integer
+          minimum: 0
+          description: Использованное смещение
+      required:
+      - items
+      - total
+      - top
+      - offset
+      additionalProperties: false
+    AdminOverview:
+      type: object
+      properties:
+        users_total:
+          type: integer
+        users_active:
+          type: integer
+        partners_total:
+          type: integer
+        partners_active:
+          type: integer
+        cameras_total:
+          type: integer
+        cameras_active:
+          type: integer
+        zones_total:
+          type: integer
+        zones_active:
+          type: integer
+        sources_total:
+          type: integer
+        sources_active:
+          type: integer
+        routes_active:
+          type: integer
+        updated_at:
+          type: string
+          format: date-time
+      required:
+      - users_total
+      - users_active
+      - partners_total
+      - partners_active
+      - cameras_total
+      - cameras_active
+      - zones_total
+      - zones_active
+      - sources_total
+      - sources_active
+      - routes_active
+      - updated_at
+      additionalProperties: false
+    AdminCameraMonitorItem:
+      type: object
+      properties:
+        camera_id:
+          type: integer
+        partner_id:
+          type: integer
+          nullable: true
+        title:
+          type: string
+        camera_status:
+          $ref: '#/components/schemas/CameraStatus'
+        processing_status:
+          $ref: '#/components/schemas/ProcessingStatus'
+        last_snapshot_at:
+          type: string
+          format: date-time
+          nullable: true
+        last_processed_at:
+          type: string
+          format: date-time
+          nullable: true
+        last_detection_at:
+          type: string
+          format: date-time
+          nullable: true
+        last_error:
+          type: string
+          nullable: true
+        source:
+          type: string
+        latitude:
+          type: number
+          format: double
+        longitude:
+          type: number
+          format: double
+        is_active:
+          type: boolean
+      required:
+      - camera_id
+      - title
+      - camera_status
+      - processing_status
+      - source
+      - latitude
+      - longitude
+      - is_active
+      additionalProperties: false
+    AdminSnapshotInfo:
+      type: object
+      properties:
+        camera_id:
+          type: integer
+        snapshot_at:
+          type: string
+          format: date-time
+        annotated:
+          type: boolean
+        content_type:
+          type: string
+        width:
+          type: integer
+          nullable: true
+        height:
+          type: integer
+          nullable: true
+        detections_count:
+          type: integer
+          nullable: true
+        processing_status:
+          $ref: '#/components/schemas/ProcessingStatus'
+        model_version:
+          type: string
+          nullable: true
+        metadata:
+          $ref: '#/components/schemas/JsonObject'
+      required:
+      - camera_id
+      - snapshot_at
+      - annotated
+      - content_type
+      - processing_status
+      additionalProperties: false
+    AdminCameraListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/AdminCameraMonitorItem'
+        total:
+          type: integer
+          minimum: 0
+          description: Общее количество элементов по фильтру
+        top:
+          type: integer
+          minimum: 0
+          description: Использованный лимит
+        offset:
+          type: integer
+          minimum: 0
+          description: Использованное смещение
+      required:
+      - items
+      - total
+      - top
+      - offset
+      additionalProperties: false
+    AcceptedCameraResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum:
+          - accepted
+        camera_id:
+          type: integer
+      required:
+      - status
+      - camera_id
+      additionalProperties: false
+    AcceptedZoneResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum:
+          - accepted
+        zone_id:
+          type: integer
+      required:
+      - status
+      - zone_id
+      additionalProperties: false
+    HealthResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum:
+          - healthy
+          - degraded
+        database:
+          type: string
+          enum:
+          - connected
+          - disconnected
+      required:
+      - status
+      - database
+      additionalProperties: false
+    VersionResponse:
+      type: object
+      properties:
+        api_version:
+          type: string
+          example: '1'
+      required:
+      - api_version
+      additionalProperties: false
